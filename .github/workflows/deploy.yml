@@ -1,0 +1,35 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Vultr VM
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    environment: production
+    steps:
+      - name: SSH deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -e
+            cd /opt/patch-loop
+            git fetch origin main
+            git reset --hard origin/main
+            docker compose up -d --build --remove-orphans
+            docker compose ps
+            docker image prune -f

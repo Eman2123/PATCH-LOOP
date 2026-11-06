@@ -6,3 +6,7 @@ node_modules/
 dist/
 *.db
 .pytest_cache/
+.ruff_cache/
+venv/
+.DS_Store
+frontend/dist/
