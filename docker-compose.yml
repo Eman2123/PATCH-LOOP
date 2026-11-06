@@ -1,0 +1,49 @@
+services:
+  # Builds the sandbox image once, then exits. backend waits for it.
+  sandbox-image:
+    build: ./sandbox
+    image: patchloop-sandbox:latest
+    command: ["python", "-c", "pass"]
+    restart: "no"
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      SANDBOX_IMAGE: ${SANDBOX_IMAGE:-patchloop-sandbox:latest}
+    depends_on:
+      sandbox-image:
+        condition: service_completed_successfully
+    expose:
+      - "8000"          # internal only; the host never publishes this port
+    volumes:
+      # Trusted backend starts sibling sandbox containers. The sandbox itself never gets this socket.
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./results:/srv/results
+      - patchloop-data:/srv/data
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./frontend/dist:/srv/frontend:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  patchloop-data:
+  caddy-data:
+  caddy-config:

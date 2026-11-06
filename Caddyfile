@@ -1,0 +1,17 @@
+{$DOMAIN:localhost} {
+	encode gzip
+
+	@api path /health /loop /loop/* /eval/* /policy/* /replay/* /containment/*
+	handle @api {
+		# flush_interval -1 keeps the SSE stream (/loop/{id}/events) live
+		reverse_proxy backend:8000 {
+			flush_interval -1
+		}
+	}
+
+	handle {
+		root * /srv/frontend
+		try_files {path} /index.html
+		file_server
+	}
+}
