@@ -17,6 +17,8 @@ class Policy(BaseModel):
     block_private_ips: bool = True
     # Email
     email_allowed_domains: list[str] = Field(default_factory=lambda: ["*"])
+    # Regex deny rules per tool, matched (case-insensitive) against every string arg
+    arg_deny_patterns: dict[str, list[str]] = Field(default_factory=dict)
     # Argument length caps per tool (applies to every string arg)
     max_arg_len: dict[str, int] = Field(
         default_factory=lambda: {"run_python": 4000, "send_email": 4000, "write_file": 20000, "fetch_url": 2048}

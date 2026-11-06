@@ -3,6 +3,7 @@ from __future__ import annotations
 import fnmatch
 import ipaddress
 import posixpath
+import re
 from email.utils import parseaddr
 from typing import Any, Optional
 from urllib.parse import urlsplit
@@ -128,6 +129,10 @@ def check_tool_call(policy: Policy, tool: str, args: dict[str, Any]) -> Decision
         for k, v in args.items():
             if isinstance(v, str) and len(v) > cap:
                 return _deny(f"arg {k} longer than {cap}", f"{tool}.max_len")
+    for pat in policy.arg_deny_patterns.get(tool, []):
+        for k, v in args.items():
+            if isinstance(v, str) and re.search(pat, v, re.IGNORECASE):
+                return _deny(f"arg {k} matches denied pattern", f"{tool}.arg_deny:{pat}")
     if tool == "list_files":
         return _check_path(policy, args.get("path", "."), policy.read_prefixes, "read")
     if tool == "read_file":
