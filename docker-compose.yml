@@ -29,11 +29,23 @@ services:
       - ./results:/srv/results
       - patchloop-data:/srv/data
 
+  # Builds the dashboard into ./frontend/dist once, then exits. caddy serves that folder.
+  frontend-build:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+    command: sh -c "npm ci --no-audit --no-fund && npm run build"
+    restart: "no"
+
   caddy:
     image: caddy:2
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_started
+      frontend-build:
+        condition: service_completed_successfully
     ports:
       - "80:80"
       - "443:443"

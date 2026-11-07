@@ -1,0 +1,40 @@
+:root { --bg:#0e1117; --card:#151a23; --line:#2a3140; --txt:#e6e9ef; --mut:#8a94a6; --red:#ff5d5d; --grn:#3ddc97; --amb:#ffb454; --blue:#5aa9ff; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--txt); font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+.app { max-width:1280px; margin:0 auto; padding:20px; }
+header { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:14px; }
+h1 { margin:0; letter-spacing:2px; font-size:26px; } h3 { margin:0 0 6px; font-size:15px; }
+.tag { margin:4px 0 0; color:var(--mut); }
+.pill { padding:5px 12px; border-radius:99px; border:1px solid var(--line); white-space:nowrap; }
+.pill.running { border-color:var(--amb); color:var(--amb); } .pill.done { border-color:var(--grn); color:var(--grn); } .pill.failed { border-color:var(--red); color:var(--red); }
+.card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:14px; }
+.controls { display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; }
+.controls label, .row label { display:flex; gap:6px; align-items:center; color:var(--mut); }
+.chk { cursor:pointer; } .sep { flex:1; }
+input, select, button { background:#0b0f15; color:var(--txt); border:1px solid var(--line); border-radius:8px; padding:6px 9px; font:inherit; }
+input[type=number] { width:64px; } input[type=password] { width:110px; }
+button { cursor:pointer; } button:disabled { opacity:.45; cursor:not-allowed; }
+button.primary { background:var(--blue); color:#06111f; border-color:var(--blue); font-weight:600; }
+.kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:14px; }
+.kpi { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 12px; }
+.kpi-t { color:var(--mut); font-size:12px; } .kpi-v { font-size:24px; font-weight:700; } .kpi-s { color:var(--mut); font-size:11px; }
+.grid { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(0,1fr); gap:14px; align-items:start; }
+.feed { position:sticky; top:12px; } .feed-list { max-height:78vh; overflow:auto; display:flex; flex-direction:column; gap:6px; padding-right:4px; }
+.feed-item { border-left:3px solid var(--line); padding:4px 9px; background:#10151d; border-radius:0 8px 8px 0; }
+.feed-item.bad { border-color:var(--red); } .feed-item.good { border-color:var(--grn); } .feed-item.warn { border-color:var(--amb); }
+.feed-item.round { background:#1a2230; font-weight:600; }
+.feed-title { font-weight:600; } .feed-detail { color:var(--mut); font-size:12px; word-break:break-word; font-family:ui-monospace,Menlo,Consolas,monospace; }
+.muted { color:var(--mut); } .small { font-size:12px; } .err { color:var(--red); }
+.patches { display:flex; flex-direction:column; gap:8px; }
+.patch { border:1px solid var(--line); border-radius:10px; padding:8px 10px; background:#10151d; }
+.patch.accepted { border-color:var(--grn); } .patch.rejected { border-color:var(--red); }
+.patch-head { display:flex; justify-content:space-between; } pre { margin:6px 0 0; font-size:12px; white-space:pre-wrap; color:#c9d1e0; }
+.badge { font-size:11px; padding:1px 8px; border-radius:99px; border:1px solid var(--line); }
+.badge.accepted { color:var(--grn); border-color:var(--grn); } .badge.rejected { color:var(--red); border-color:var(--red); } .badge.proposed { color:var(--amb); border-color:var(--amb); }
+.reason { color:var(--red); font-size:12px; margin-top:4px; }
+.row { display:flex; gap:12px; align-items:center; margin:8px 0; }
+table.eval { width:100%; border-collapse:collapse; margin-top:8px; } .eval th, .eval td { text-align:left; padding:6px 4px; border-bottom:1px solid var(--line); vertical-align:middle; }
+.eval tr.ours td { background:#12251d; font-weight:600; }
+.bar { width:90px; height:8px; background:#0b0f15; border-radius:4px; display:inline-block; margin-right:8px; overflow:hidden; } .bar div { height:100%; background:var(--red); }
+footer { margin-top:8px; }
+@media (max-width:900px) { .grid { grid-template-columns:1fr; } .feed { position:static; } }
