@@ -43,7 +43,6 @@ jobs:
   frontend:
     name: Frontend (build)
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('frontend/package.json') != '' }}
     defaults:
       run:
         working-directory: frontend
@@ -60,7 +59,6 @@ jobs:
   docker:
     name: Docker build check
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('docker-compose.yml') != '' }}
     steps:
       - uses: actions/checkout@v4
       - name: Compose config + build
