@@ -6,7 +6,7 @@ The deadline was not confirmed on the event page. Internal target: **7 Nov 19:00
 - [ ] Public GitHub repo, MIT license, README (done: `README.md`, `LICENSE`)
 - [ ] Backend deployed on a **Vultr Cloud Compute** VM
 - [ ] **Vultr Serverless Inference** used by the agents (`MODEL_NAME` chosen with `scripts/model_test.py`)
-- [ ] Isolated sandbox (Docker + gVisor `runsc`), shown working in `/health` and the Containment Lab
+- [ ] Isolated sandbox (hardened Docker: cap-drop ALL, read-only fs, no network, memory/pids limits, timeout; gVisor not used), shown working in `/health` and the Containment Lab
 - [ ] Public demo URL (HTTPS via Caddy; `<ip-with-dashes>.sslip.io` if there is no domain)
 - [ ] Demo video under 5 minutes with one containment moment (`docs/DEMO_SCRIPT.md`)
 - [ ] Architecture explanation (`docs/ARCHITECTURE.md`; paste the diagram into the submission)

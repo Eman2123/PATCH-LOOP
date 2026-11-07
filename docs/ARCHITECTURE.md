@@ -13,7 +13,7 @@ flowchart LR
     ATK & WRK & PAT -->|OpenAI-compatible| VI[(Vultr Serverless Inference)]
     WRK -->|every tool call| GW[Policy gateway]
     GW -->|allowed| ENV[Simulated world: files, web, mail, canary sink]
-    GW -->|run_python| SBX[Docker + gVisor sandbox]
+    GW -->|run_python| SBX[Docker sandbox (hardened)]
     LOOP --> VER[Deterministic verifier: state diff]
     LOOP --> GATE[Utility gate: benign suite]
     PAT -->|narrowing patch only| POL[Policy vN -> vN+1]
@@ -62,7 +62,7 @@ sequenceDiagram
 
 New container per call, destroyed after: `--network none`, `--cap-drop ALL`, `no-new-privileges`, `--read-only`
 plus a small `noexec` tmpfs on `/tmp`, 256 MB RAM with no swap, PID and CPU limits, user `65534`, 20 s timeout,
-no volumes, no env vars except one constant, code piped over stdin. `SANDBOX_RUNTIME=runsc` runs it under gVisor.
+no volumes, no env vars except one constant, code piped over stdin. `SANDBOX_RUNTIME=runsc` would run it under gVisor if installed; this deployment uses plain Docker (runc).
 
 ## Patch language (narrowing only)
 

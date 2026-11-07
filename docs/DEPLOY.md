@@ -6,7 +6,7 @@
    git clone https://github.com/Eman2123/PATCH-LOOP.git /opt/patch-loop
    cd /opt/patch-loop && bash scripts/vm_setup.sh
    ```
-3. `cp .env.example .env` and set `VULTR_API_KEY`, `MODEL_NAME`, `DOMAIN` (use `<ip-with-dashes>.sslip.io` if you have no domain), `SANDBOX_RUNTIME=runsc`.
+3. `cp .env.example .env` and set `VULTR_API_KEY`, `MODEL_NAME`, `DOMAIN` (use `<ip-with-dashes>.sslip.io` if you have no domain), `SANDBOX_RUNTIME=` (empty; set `runsc` only if gVisor is installed).
 4. `docker compose up -d --build`
 5. Check: `curl https://$DOMAIN/health` should show `"docker": true, "image": true, "runtime_available": true`.
 

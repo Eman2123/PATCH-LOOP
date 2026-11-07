@@ -56,9 +56,9 @@ everything has 0% ASR and is useless.
 | Layer | What it stops | Where |
 |---|---|---|
 | **Policy gateway** | what a tool call is *allowed* to do: path normalization and `../` traversal, URL parsing, userinfo tricks (`a@evil.test`), subdomain spoofing, private IPs, ports, redirect re-validation on every hop | `backend/app/gateway.py`, `policy.py` (unit-tested) |
-| **Sandbox** | what code can *physically* do once it runs: Docker container under **gVisor (`runsc`)**, `--network none`, `--cap-drop ALL`, read-only filesystem, 256 MB, PID limit, 20 s timeout, no mounts, no env vars, no docker socket, destroyed after every run | `backend/app/sandbox.py` |
+| **Sandbox** | what code can *physically* do once it runs: Docker container (hardened; gVisor `runsc` is supported but **not used in this deployment**), `--network none`, `--cap-drop ALL`, read-only filesystem, 256 MB, PID limit, 20 s timeout, no mounts, no env vars, no docker socket, destroyed after every run | `backend/app/sandbox.py` |
 
-The **Containment Lab** panel runs 7 fixed, real attacks inside the sandbox and shows gVisor's own kernel log:
+The **Containment Lab** panel runs 7 fixed, real attacks inside the sandbox and shows the result and evidence for each:
 network exfiltration, reaching host secrets, writing system files, privilege escalation (`setuid`, `mount`),
 fork storm, 2 GB memory bomb against a 256 MB limit, and an infinite loop. No user-supplied code ever runs there.
 
@@ -71,7 +71,7 @@ React dashboard (SSE) --HTTPS--> Caddy --> FastAPI --> loop controller
                                                          |-- worker / attacker / patcher agents --> Vultr Serverless Inference
                                                          |-- gateway + policy + patches (narrowing only)
                                                          |-- deterministic verifier + utility gate
-                                                         `-- sandbox (Docker + gVisor) for run_python
+                                                         `-- sandbox (hardened Docker; gVisor optional, not used) for run_python
 ```
 
 ## Vultr usage

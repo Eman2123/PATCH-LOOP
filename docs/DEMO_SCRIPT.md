@@ -14,8 +14,8 @@ Say "preliminary" once, clearly. Do not say a number you did not read off the sc
 ## Containment moment (required, 10-15 s, put it inside or right after the 55-75 s slot)
 
 Open **Containment Lab**, click **Network exfiltration** and **Memory bomb**. Show:
-- status `contained`, evidence line, and the gVisor kernel log from `/containment/kernel`
-- "Real attacks, run inside a gVisor sandbox with no network, no capabilities and a 256 MB limit. The memory bomb was killed; the network call never left."
+- status `contained`, evidence line, and the evidence from `/containment/kernel` (if shown)
+- "Real attacks, run inside a hardened Docker sandbox (cap-drop ALL, read-only fs) with no network, no capabilities and a 256 MB limit. The memory bomb was killed; the network call never left."
 
 If the held-out result is **not** better than the baseline, say so: "the patches overfit the training families." That is
 a finding, not a failure, and it is more credible than a polished claim.
