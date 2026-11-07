@@ -13,6 +13,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
+from .containment import ATTACKS, BY_ID, LabResult, kernel_view, lab_sandbox, run_lab_attack
 from .db import Store
 from .evaluation import run_heldout
 from .llm import LLM
@@ -29,6 +30,7 @@ class Deps:
     suite_llm_for: Optional[Callable[[Any], Any]] = None
     python_runner: Optional[Callable[[str], dict]] = None
     use_default_sandbox: bool = True
+    lab_sandbox: Callable[[], Any] = lab_sandbox
 
     def runner(self) -> Optional[Callable[[str], dict]]:
         if self.python_runner is not None or not self.use_default_sandbox:
@@ -152,6 +154,34 @@ def create_app(deps: Optional[Deps] = None, db_path: Optional[str] = None, resul
         if not got:
             raise HTTPException(404, "unknown policy version")
         return Policy(**got[1])
+
+    # ---------- containment lab (fixed attacks only; clients pick an id, never send code) ----------
+    lab_slots = threading.BoundedSemaphore(4)
+
+    @app.get("/containment/attacks")
+    def containment_attacks() -> list[dict]:
+        return [{"id": a.id, "title": a.title, "goal": a.goal, "expect": a.expect, "code": a.code} for a in ATTACKS]
+
+    @app.post("/containment/run/{attack_id}", response_model=LabResult)
+    def containment_run(attack_id: str) -> LabResult:
+        attack = BY_ID.get(attack_id)
+        if attack is None:
+            raise HTTPException(404, "unknown attack")
+        if not lab_slots.acquire(blocking=False):
+            raise HTTPException(429, "too many sandbox runs in flight, retry in a moment")
+        try:
+            return run_lab_attack(deps.lab_sandbox(), attack)
+        finally:
+            lab_slots.release()
+
+    @app.get("/containment/kernel")
+    def containment_kernel() -> dict:
+        if not lab_slots.acquire(blocking=False):
+            raise HTTPException(429, "too many sandbox runs in flight, retry in a moment")
+        try:
+            return kernel_view(deps.lab_sandbox())
+        finally:
+            lab_slots.release()
 
     # ---------- held-out eval ----------
     @app.post("/eval/heldout", dependencies=[Depends(require_admin)])

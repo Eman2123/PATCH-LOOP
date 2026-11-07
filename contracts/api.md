@@ -14,6 +14,9 @@ One loop or eval runs at a time; a second start returns **409**. If `ADMIN_TOKEN
 | GET | /policy/{v}?loop_id= | loop_id optional (default: latest loop with that version) | Policy |
 | POST | /eval/heldout | HeldoutRequest `{policy_version, loop_id?, configs, n_per_family 1-30, use_fixed_attacks}` | {"eval_id": str} |
 | GET | /eval/{eval_id} | poll until status done/failed | {id, loop_id, status, request, result} |
+| GET | /containment/attacks | the 7 fixed lab attacks (id, title, goal, code) | list |
+| POST | /containment/run/{id} | runs ONE fixed attack in the sandbox; body ignored (no user code ever runs) | {id,title,status contained/escaped/inconclusive/unavailable,evidence,exit_code,duration_s,runtime,timeout_s} (429 if >4 in flight) |
+| GET | /containment/kernel | uname + dmesg as seen inside the sandbox (gVisor kernel messages under runsc) | {runtime,output,available} |
 
 ## LoopEvent.type and data
 - `metrics` (round 0 = baseline): `{round, policy_version, utility{passed,total,baseline}, asr{k,n,rate,lo,hi}, damage, contained, false_blocks, patches_accepted, patches_rejected, regression{library,failures}, attacker_diversity}`

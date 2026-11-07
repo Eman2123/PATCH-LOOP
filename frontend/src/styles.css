@@ -38,3 +38,10 @@ table.eval { width:100%; border-collapse:collapse; margin-top:8px; } .eval th, .
 .bar { width:90px; height:8px; background:#0b0f15; border-radius:4px; display:inline-block; margin-right:8px; overflow:hidden; } .bar div { height:100%; background:var(--red); }
 footer { margin-top:8px; }
 @media (max-width:900px) { .grid { grid-template-columns:1fr; } .feed { position:static; } }
+
+.lab { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:10px; margin-top:8px; }
+.lab-item { border:1px solid var(--line); border-radius:10px; padding:8px 10px; background:#10151d; }
+.lab-item.contained { border-color:var(--grn); } .lab-item.escaped { border-color:var(--red); } .lab-item.running { border-color:var(--amb); }
+.badge.contained { color:var(--grn); border-color:var(--grn); } .badge.escaped, .badge.error { color:var(--red); border-color:var(--red); }
+.badge.running, .badge.inconclusive, .badge.unavailable { color:var(--amb); border-color:var(--amb); }
+.ok { color:var(--grn); } .kernel { margin-top:10px; border-top:1px solid var(--line); padding-top:8px; } details pre { max-height:180px; overflow:auto; }

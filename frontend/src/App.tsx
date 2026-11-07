@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { getToken, health, listLoops, setToken, startLoop } from "./api";
-import { DualChart, Feed, Heldout, Kpis, Patches } from "./components";
+import { ContainmentLab, DualChart, Feed, Heldout, Kpis, Patches } from "./components";
 import { reduce } from "./reduce";
 import { useEvents, type Source } from "./useEvents";
 
@@ -78,6 +78,7 @@ export default function App() {
         </div>
         <Feed items={model.feed} />
       </div>
+      <ContainmentLab />
       <footer className="muted small">Preliminary results, small N. Verifier is deterministic (state-diff), never an LLM. Damage weights are an opinion.</footer>
     </div>
   );

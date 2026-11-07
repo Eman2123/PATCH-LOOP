@@ -26,3 +26,9 @@ export const startEval = (policy_version: number, loop_id: string, n_per_family:
   call<{ eval_id: string }>("/eval/heldout", { method: "POST", body: JSON.stringify({ policy_version, loop_id, n_per_family, use_fixed_attacks }) });
 export const getEval = (id: string) => call<{ status: string; result: EvalResult | null }>(`/eval/${id}`);
 export const health = () => call<{ ok: boolean; busy: boolean; tool_mode: string; sandbox: Record<string, unknown> }>("/health");
+
+export type LabAttackInfo = { id: string; title: string; goal: string; expect: string; code: string };
+export type LabResult = { id: string; title: string; status: "contained" | "escaped" | "inconclusive" | "unavailable"; evidence: string; exit_code: number; duration_s: number; runtime: string; timeout_s: number };
+export const labAttacks = () => call<LabAttackInfo[]>("/containment/attacks");
+export const labRun = (id: string) => call<LabResult>(`/containment/run/${id}`, { method: "POST", body: "{}" });
+export const labKernel = () => call<{ runtime: string; output: string; available: boolean }>("/containment/kernel");

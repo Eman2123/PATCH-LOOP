@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Area, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { getEval, startEval } from "./api";
+import { getEval, labAttacks, labKernel, labRun, startEval, type LabAttackInfo, type LabResult } from "./api";
 import { chartRows } from "./reduce";
 import type { EvalResult, FeedItem, Model, PatchItem, Rate } from "./types";
 
@@ -149,6 +149,70 @@ export function Heldout({ loopId, version, disabled, fixed }: { loopId: string |
         </table>
       )}
       {res && <p className="muted small">*Damage weights are our published opinion. {res.note}</p>}
+    </div>
+  );
+}
+
+export function ContainmentLab() {
+  const [attacks, setAttacks] = useState<LabAttackInfo[]>([]);
+  const [results, setResults] = useState<Record<string, LabResult | "running" | string>>({});
+  const [kernel, setKernel] = useState<{ runtime: string; output: string; available: boolean } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => { labAttacks().then(setAttacks).catch(() => undefined); }, []);
+
+  async function runAll() {
+    setBusy(true);
+    setResults(Object.fromEntries(attacks.map((a) => [a.id, "running"])));
+    labKernel().then(setKernel).catch(() => undefined);
+    await Promise.all(attacks.map(async (a) => {
+      try {
+        const r = await labRun(a.id);
+        setResults((prev) => ({ ...prev, [a.id]: r }));
+      } catch (e) {
+        setResults((prev) => ({ ...prev, [a.id]: `error: ${e instanceof Error ? e.message : e}` }));
+      }
+    }));
+    setBusy(false);
+  }
+
+  const done = Object.values(results).filter((r): r is LabResult => typeof r === "object");
+  const escaped = done.filter((r) => r.status === "escaped").length;
+  const contained = done.filter((r) => r.status === "contained").length;
+  return (
+    <div className="card">
+      <h3>Containment Lab <span className="muted">(real attacks inside the real sandbox)</span></h3>
+      <p className="muted">
+        Each attack runs in a fresh container: no network, all capabilities dropped, read-only filesystem, 256 MB, pids limit, timeout, destroyed afterwards
+        {done[0] ? ` · runtime: ${done[0].runtime}` : ""}. Verdicts are computed by code, not by an LLM.
+      </p>
+      <div className="row">
+        <button className="primary" disabled={busy || attacks.length === 0} onClick={runAll}>{busy ? "Attacking…" : `Run ${attacks.length} attacks`}</button>
+        {done.length > 0 && <b className={escaped ? "err" : "ok"}>{contained} contained · {escaped} escaped · {done.length - contained - escaped} other</b>}
+      </div>
+      <div className="lab">
+        {attacks.map((a) => {
+          const r = results[a.id];
+          const res = typeof r === "object" ? r : null;
+          const status = res ? res.status : r === "running" ? "running" : r ? "error" : "idle";
+          return (
+            <div key={a.id} className={`lab-item ${status}`}>
+              <div className="patch-head"><b>{a.title}</b><span className={`badge ${status}`}>{status}</span></div>
+              <div className="muted small">{a.goal}</div>
+              {res && <pre>{res.evidence}</pre>}
+              {res && <div className="muted small">exit {res.exit_code} · {res.duration_s}s</div>}
+              {typeof r === "string" && r !== "running" && <div className="reason">{r}</div>}
+              <details><summary className="muted small">attack code</summary><pre>{a.code}</pre></details>
+            </div>
+          );
+        })}
+      </div>
+      {kernel && (
+        <div className="kernel">
+          <div className="muted small">What the sandboxed process sees as its kernel (runtime: {kernel.runtime})</div>
+          <pre>{kernel.available ? kernel.output : "sandbox unavailable"}</pre>
+        </div>
+      )}
     </div>
   );
 }
