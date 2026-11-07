@@ -1,10 +1,7 @@
 name: Deploy
 
+# Manual only: needs repo secrets VM_HOST, VM_USER, VM_SSH_KEY. Deployment is done on the VM directly.
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
