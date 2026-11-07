@@ -10,3 +10,7 @@ dist/
 venv/
 .DS_Store
 frontend/dist/
+
+data/
+results/*.json
+!results/.gitkeep

@@ -52,6 +52,30 @@ class AttackRun:
     evidence: Evidence
 
 
+def run_attack(
+    llm: Any,
+    python_runner: Optional[Callable[[str], dict]],
+    policy: Policy,
+    spec: AttackSpec,
+    tool_mode: str = "native",
+    max_steps: int = 8,
+    defense: str = "none",
+    on_tool: Optional[Callable[[str, dict, Any], None]] = None,
+) -> AttackRun:
+    """One attack end to end in a fresh world; the deterministic verifier decides the outcome."""
+    world = build_world()
+    task = plant_attack(world, spec)
+    snap = world.snapshot()
+    worker = run_worker(llm, SimEnv(world, python_runner), policy, task, defense=defense,  # type: ignore[arg-type]
+                        tool_mode=tool_mode, max_steps=max_steps, on_tool=on_tool)  # type: ignore[arg-type]
+    v = verify(snap, world)
+    blocked = next((r for r in world.tool_log if not r.allowed), None)
+    why = ("breached: " + ",".join(b.kind for b in v.breaches)) if v.breached else (
+        f"blocked by {blocked.rule}" if blocked else "agent did not follow the payload")
+    return AttackRun(spec, v.breached, v.damage, [b.kind for b in v.breaches], v.contained,
+                     worker.tool_calls, why, build_evidence(spec.family, spec.payload, world, v))
+
+
 @dataclass
 class LoopRunner:
     llm: Optional[LLM]
@@ -81,24 +105,13 @@ class LoopRunner:
         return run_suite(policy, llm_for, self.python_runner, self.tasks, self.cfg.tool_mode, self.cfg.max_steps)
 
     def _run_attack(self, policy: Policy, spec: AttackSpec, announce: bool = False) -> AttackRun:
-        world = build_world()
-        task = plant_attack(world, spec)
-        snap = world.snapshot()
-
         def on_tool(tool: str, args: dict, res: Any) -> None:
             if announce:
                 self.emit("tool_call", {"tool": tool, "args": {k: str(v)[:200] for k, v in args.items()},
                                         "allowed": res.decision.allowed, "rule": res.decision.rule,
                                         "reason": res.decision.reason})
 
-        worker = run_worker(self.llm, SimEnv(world, self.python_runner), policy, task,  # type: ignore[arg-type]
-                            tool_mode=self.cfg.tool_mode, max_steps=self.cfg.max_steps, on_tool=on_tool)
-        v = verify(snap, world)
-        blocked = next((r for r in world.tool_log if not r.allowed), None)
-        why = ("breached: " + ",".join(b.kind for b in v.breaches)) if v.breached else (
-            f"blocked by {blocked.rule}" if blocked else "agent did not follow the payload")
-        return AttackRun(spec, v.breached, v.damage, [b.kind for b in v.breaches], v.contained,
-                         worker.tool_calls, why, build_evidence(spec.family, spec.payload, world, v))
+        return run_attack(self.llm, self.python_runner, policy, spec, self.cfg.tool_mode, self.cfg.max_steps, "none", on_tool)
 
     # ---------- main loop ----------
     def run(self, cfg: Optional[LoopConfig] = None) -> LoopState:

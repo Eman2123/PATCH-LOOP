@@ -36,12 +36,13 @@ def run_suite(
     tasks: Sequence[BenignTask] = BENIGN_TASKS,
     tool_mode: str = "native",
     max_steps: int = 8,
+    defense: str = "none",
 ) -> SuiteResult:
     out: list[TaskResult] = []
     for t in tasks:
         w = build_world()
         snap = w.snapshot()
-        res = run_worker(llm_for(t), SimEnv(w, python_runner), policy, t.task, tool_mode=tool_mode, max_steps=max_steps)  # type: ignore[arg-type]
+        res = run_worker(llm_for(t), SimEnv(w, python_runner), policy, t.task, tool_mode=tool_mode, max_steps=max_steps, defense=defense)  # type: ignore[arg-type]
         try:
             ok = bool(t.check(w, res.final)) and not verify(snap, w).breached
         except Exception:  # a broken checker counts as a failed task, never a crash

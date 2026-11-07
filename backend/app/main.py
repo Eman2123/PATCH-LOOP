@@ -1,13 +1,199 @@
-"""FastAPI entrypoint. Only /health exists so far; loop endpoints land with loop.py (see contracts/api.md)."""
+"""FastAPI app. Endpoints follow contracts/api.md. One loop/eval runs at a time (protects LLM credits and Docker)."""
 from __future__ import annotations
 
-from fastapi import FastAPI
+import json
+import os
+import threading
+import time
+import uuid
+from dataclasses import dataclass, field
+from typing import Any, Callable, Iterator, Optional
 
-from .sandbox import default_sandbox
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 
-app = FastAPI(title="PATCH LOOP", version="0.1.0")
+from .db import Store
+from .evaluation import run_heldout
+from .llm import LLM
+from .loop import LoopConfig, LoopRunner
+from .policy import Policy
+from .sandbox import default_sandbox, make_python_runner
+from .schemas import HeldoutRequest, LoopEvent, LoopStartRequest, LoopState
 
 
-@app.get("/health")
-def health() -> dict:
-    return {"ok": True, "sandbox": default_sandbox().status()}
+@dataclass
+class Deps:
+    """Injection points so tests run without network or Docker."""
+    make_llm: Callable[[], Any] = LLM.from_env
+    suite_llm_for: Optional[Callable[[Any], Any]] = None
+    python_runner: Optional[Callable[[str], dict]] = None
+    use_default_sandbox: bool = True
+
+    def runner(self) -> Optional[Callable[[str], dict]]:
+        if self.python_runner is not None or not self.use_default_sandbox:
+            return self.python_runner
+        sb = default_sandbox()
+        return make_python_runner(sb) if sb.status().get("docker") else None
+
+
+@dataclass
+class Busy:
+    lock: threading.Lock = field(default_factory=threading.Lock)
+    what: str = ""
+
+
+def create_app(deps: Optional[Deps] = None, db_path: Optional[str] = None, results_dir: Optional[str] = None) -> FastAPI:
+    app = FastAPI(title="PATCH LOOP", version="0.2.0")
+    deps = deps or Deps()
+    store = Store(db_path or os.environ.get("PATCHLOOP_DB", "data/patchloop.db"))
+    results = results_dir if results_dir is not None else os.environ.get("RESULTS_DIR", "../results")
+    busy = Busy()
+    tool_mode = os.environ.get("TOOL_MODE", "native")
+    admin_token = os.environ.get("ADMIN_TOKEN", "")
+    app.state.store, app.state.deps = store, deps
+
+    app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
+                       allow_methods=["GET", "POST"], allow_headers=["*"])
+
+    def require_admin(x_admin_token: str = Header(default="")) -> None:
+        if admin_token and x_admin_token != admin_token:
+            raise HTTPException(401, "missing or wrong X-Admin-Token")
+
+    def acquire(what: str) -> None:
+        if not busy.lock.acquire(blocking=False):
+            raise HTTPException(409, f"busy: {busy.what} is still running")
+        busy.what = what
+
+    # ---------- health ----------
+    @app.get("/health")
+    def health() -> dict:
+        return {"ok": True, "sandbox": default_sandbox().status(), "busy": busy.lock.locked(), "tool_mode": tool_mode}
+
+    # ---------- loop ----------
+    @app.post("/loop/start", dependencies=[Depends(require_admin)])
+    def loop_start(req: LoopStartRequest) -> dict:
+        try:
+            llm = deps.make_llm()
+        except Exception as e:  # noqa: BLE001 - no key etc.
+            raise HTTPException(503, f"LLM not available: {e}")
+        acquire("loop")
+        cfg = LoopConfig(rounds=req.rounds, attacks_per_round=req.attacks_per_round, families=list(req.families),
+                         tool_mode=tool_mode, use_fixed_attacks=req.use_fixed_attacks,
+                         template_patcher_only=req.template_patcher_only)
+        runner = LoopRunner(llm, deps.runner(), deps.suite_llm_for, results_dir=results)
+        store.create_loop(runner.loop_id, cfg.model_dump(), runner.state.model_dump())
+
+        def sink(ev: LoopEvent) -> None:
+            store.add_event(ev.loop_id, ev.seq, ev.type, ev.data)
+            store.save_state(ev.loop_id, runner.state.model_dump())
+            for v, p in list(runner.policies.items()):
+                store.save_policy(ev.loop_id, v, p.model_dump())
+
+        runner.sink = sink
+
+        def work() -> None:
+            try:
+                runner.run(cfg)
+            except Exception:  # noqa: BLE001 - run() already reports; this is the last resort
+                runner.state.status = "failed"
+            finally:
+                store.save_state(runner.loop_id, runner.state.model_dump())
+                for v, p in runner.policies.items():
+                    store.save_policy(runner.loop_id, v, p.model_dump())
+                busy.lock.release()
+
+        threading.Thread(target=work, daemon=True, name=f"loop-{runner.loop_id}").start()
+        return {"loop_id": runner.loop_id}
+
+    @app.get("/loops")
+    def loops() -> list[dict]:
+        return store.list_loops()
+
+    @app.get("/loop/{loop_id}", response_model=LoopState)
+    def loop_state(loop_id: str) -> LoopState:
+        row = store.get_loop(loop_id)
+        if not row:
+            raise HTTPException(404, "unknown loop")
+        return LoopState(**{**row["state"], "status": row["status"]})
+
+    @app.get("/loop/{loop_id}/events")
+    def loop_events(loop_id: str, from_seq: int = Query(0, ge=0)) -> StreamingResponse:
+        if not store.get_loop(loop_id):
+            raise HTTPException(404, "unknown loop")
+
+        def stream() -> Iterator[str]:
+            last, idle = from_seq - 1, 0
+            while True:
+                rows = store.events(loop_id, last)
+                for r in rows:
+                    last = r["seq"]
+                    yield f"id: {r['seq']}\ndata: {json.dumps(r)}\n\n"
+                loop = store.get_loop(loop_id)
+                if loop and loop["status"] in ("done", "failed") and not rows:
+                    break
+                idle = 0 if rows else idle + 1
+                if idle and idle % 50 == 0:
+                    yield ": keepalive\n\n"
+                time.sleep(0.25)
+
+        return StreamingResponse(stream(), media_type="text/event-stream",
+                                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+    @app.get("/replay/{loop_id}", response_model=list[LoopEvent])
+    def replay(loop_id: str) -> list[dict]:
+        if not store.get_loop(loop_id):
+            raise HTTPException(404, "unknown loop")
+        return store.events(loop_id)
+
+    @app.get("/policy/{version}", response_model=Policy)
+    def policy(version: int, loop_id: Optional[str] = None) -> Policy:
+        got = store.get_policy(version, loop_id)
+        if not got:
+            raise HTTPException(404, "unknown policy version")
+        return Policy(**got[1])
+
+    # ---------- held-out eval ----------
+    @app.post("/eval/heldout", dependencies=[Depends(require_admin)])
+    def eval_heldout(req: HeldoutRequest) -> dict:
+        got = store.get_policy(req.policy_version, req.loop_id)
+        if not got:
+            raise HTTPException(404, "unknown policy version (run a loop first)")
+        loop_id, body = got
+        try:
+            llm = deps.make_llm()
+        except Exception as e:  # noqa: BLE001
+            raise HTTPException(503, f"LLM not available: {e}")
+        acquire("eval")
+        eval_id = uuid.uuid4().hex[:10]
+        store.create_eval(eval_id, loop_id, req.model_dump())
+
+        def work() -> None:
+            try:
+                res = run_heldout(llm, deps.runner(), Policy(**body), list(req.configs), req.n_per_family,
+                                  tool_mode=tool_mode, use_fixed_attacks=req.use_fixed_attacks,
+                                  suite_llm_for=deps.suite_llm_for)
+                res.update({"eval_id": eval_id, "loop_id": loop_id, "policy_version": req.policy_version})
+                store.finish_eval(eval_id, "done", res)
+                os.makedirs(results, exist_ok=True)
+                with open(os.path.join(results, f"eval_{eval_id}.json"), "w", encoding="utf-8") as f:
+                    json.dump(res, f, indent=2)
+            except Exception as e:  # noqa: BLE001
+                store.finish_eval(eval_id, "failed", {"error": f"{type(e).__name__}: {e}"[:300]})
+            finally:
+                busy.lock.release()
+
+        threading.Thread(target=work, daemon=True, name=f"eval-{eval_id}").start()
+        return {"eval_id": eval_id}
+
+    @app.get("/eval/{eval_id}")
+    def eval_get(eval_id: str) -> dict:
+        row = store.get_eval(eval_id)
+        if not row:
+            raise HTTPException(404, "unknown eval")
+        return row
+
+    return app
+
+
+app = create_app()
