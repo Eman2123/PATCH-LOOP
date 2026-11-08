@@ -116,7 +116,7 @@ class LLM:
                     continue
 
     @classmethod
-    def from_env(cls, env: Optional[Mapping[str, str]] = None, **kw: Any) -> "LLM":
+    def from_env(cls, env: Optional[Mapping[str, str]] = None, model_env: str = "MODEL_NAME", **kw: Any) -> "LLM":
         from openai import OpenAI  # imported lazily so tests never need network or a key
 
         env = env if env is not None else os.environ
@@ -126,7 +126,7 @@ class LLM:
         client = OpenAI(api_key=key, base_url=env.get("VULTR_BASE_URL", "https://api.vultrinference.com/v1"))
         # glm-5.3 is a reasoning model: thinking tokens count against max_tokens, so leave generous room.
         kw.setdefault("max_tokens", int(env.get("LLM_MAX_TOKENS", "4096") or 4096))
-        return cls(client, env.get("MODEL_NAME", "glm-5.3"), cache_path=env.get("LLM_CACHE_PATH") or None, **kw)
+        return cls(client, env.get(model_env) or env.get("MODEL_NAME", "glm-5.3"), cache_path=env.get("LLM_CACHE_PATH") or None, **kw)
 
     # ---------- core call ----------
     def _key(self, messages: Sequence[dict], tools: Optional[Sequence[dict]], json_mode: bool) -> str:

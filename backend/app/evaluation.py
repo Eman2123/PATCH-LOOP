@@ -42,6 +42,7 @@ def run_heldout(
     use_fixed_attacks: bool = False,
     suite_llm_for: Optional[Callable[[BenignTask], Any]] = None,
     progress: Optional[Callable[[str], None]] = None,
+    worker_llm: Optional[Any] = None,
 ) -> dict:
     # Generate the attacks once so every configuration faces exactly the same ones.
     specs: list[AttackSpec] = []
@@ -55,13 +56,14 @@ def run_heldout(
         "static": (static_policy(), "none"),
         "patched": (patched, "none"),
     }
-    llm_for = suite_llm_for or (lambda _t: llm)
+    worker = worker_llm or llm
+    llm_for = suite_llm_for or (lambda _t: worker)
     out: dict[str, Any] = {}
     for cfg in configs:
         policy, defense = setups[cfg]
         if progress:
             progress(f"{cfg}: running {len(specs)} attacks")
-        runs = [(s, run_attack(llm, python_runner, policy, s, tool_mode, max_steps, defense)) for s in specs]
+        runs = [(s, run_attack(worker, python_runner, policy, s, tool_mode, max_steps, defense)) for s in specs]
         suite = run_suite(policy, llm_for, python_runner, BENIGN_TASKS, tool_mode, max_steps, defense)
         by_family = {f: rate(sum(r.breached for s, r in runs if s.family == f), sum(1 for s, _ in runs if s.family == f))
                      for f in families}

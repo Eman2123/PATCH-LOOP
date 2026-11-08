@@ -27,6 +27,7 @@ from .schemas import HeldoutRequest, LoopEvent, LoopStartRequest, LoopState
 class Deps:
     """Injection points so tests run without network or Docker."""
     make_llm: Callable[[], Any] = LLM.from_env
+    make_worker_llm: Optional[Callable[[], Any]] = None  # None: use WORKER_MODEL_NAME from the env if set
     suite_llm_for: Optional[Callable[[Any], Any]] = None
     python_runner: Optional[Callable[[str], dict]] = None
     use_default_sandbox: bool = True
@@ -54,6 +55,13 @@ def create_app(deps: Optional[Deps] = None, db_path: Optional[str] = None, resul
     tool_mode = os.environ.get("TOOL_MODE", "native")
     admin_token = os.environ.get("ADMIN_TOKEN", "")
     app.state.store, app.state.deps = store, deps
+    model_name = os.environ.get("MODEL_NAME", "glm-5.3")
+    worker_name = os.environ.get("WORKER_MODEL_NAME", "") or model_name
+    if deps.make_worker_llm is None and os.environ.get("WORKER_MODEL_NAME"):
+        deps.make_worker_llm = lambda: LLM.from_env(model_env="WORKER_MODEL_NAME")
+
+    def worker_llm() -> Any:
+        return deps.make_worker_llm() if deps.make_worker_llm else None
 
     app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
                        allow_methods=["GET", "POST"], allow_headers=["*"])
@@ -70,7 +78,8 @@ def create_app(deps: Optional[Deps] = None, db_path: Optional[str] = None, resul
     # ---------- health ----------
     @app.get("/health")
     def health() -> dict:
-        return {"ok": True, "sandbox": default_sandbox().status(), "busy": busy.lock.locked(), "tool_mode": tool_mode}
+        return {"ok": True, "sandbox": default_sandbox().status(), "busy": busy.lock.locked(), "tool_mode": tool_mode,
+                "models": {"attacker_patcher": model_name, "worker": worker_name}}
 
     # ---------- loop ----------
     @app.post("/loop/start", dependencies=[Depends(require_admin)])
@@ -83,7 +92,7 @@ def create_app(deps: Optional[Deps] = None, db_path: Optional[str] = None, resul
         cfg = LoopConfig(rounds=req.rounds, attacks_per_round=req.attacks_per_round, families=list(req.families),
                          tool_mode=tool_mode, use_fixed_attacks=req.use_fixed_attacks,
                          template_patcher_only=req.template_patcher_only)
-        runner = LoopRunner(llm, deps.runner(), deps.suite_llm_for, results_dir=results)
+        runner = LoopRunner(llm, deps.runner(), deps.suite_llm_for, results_dir=results, worker_llm=worker_llm())
         store.create_loop(runner.loop_id, cfg.model_dump(), runner.state.model_dump())
 
         def sink(ev: LoopEvent) -> None:
@@ -196,6 +205,7 @@ def create_app(deps: Optional[Deps] = None, db_path: Optional[str] = None, resul
             llm = deps.make_llm()
         except Exception as e:  # noqa: BLE001
             raise HTTPException(503, f"LLM not available: {e}")
+        wllm = worker_llm()
         acquire("eval")
         eval_id = uuid.uuid4().hex[:10]
         store.create_eval(eval_id, loop_id, req.model_dump())
@@ -204,7 +214,7 @@ def create_app(deps: Optional[Deps] = None, db_path: Optional[str] = None, resul
             try:
                 res = run_heldout(llm, deps.runner(), Policy(**body), list(req.configs), req.n_per_family,
                                   tool_mode=tool_mode, use_fixed_attacks=req.use_fixed_attacks,
-                                  suite_llm_for=deps.suite_llm_for)
+                                  suite_llm_for=deps.suite_llm_for, worker_llm=wllm)
                 res.update({"eval_id": eval_id, "loop_id": loop_id, "policy_version": req.policy_version})
                 store.finish_eval(eval_id, "done", res)
                 os.makedirs(results, exist_ok=True)

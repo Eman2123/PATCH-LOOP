@@ -84,6 +84,7 @@ class LoopRunner:
     llm: Optional[LLM]
     python_runner: Optional[Callable[[str], dict]] = None
     suite_llm_for: Optional[Callable[[BenignTask], Any]] = None  # tests inject an ideal worker here
+    worker_llm: Optional[Any] = None  # model that plays OfficeBot; defaults to llm (attacker and patcher)
     sink: Optional[Callable[[LoopEvent], None]] = None
     results_dir: Optional[str] = None
     loop_id: str = field(default_factory=lambda: uuid.uuid4().hex[:10])
@@ -104,7 +105,7 @@ class LoopRunner:
             self.sink(ev)
 
     def _suite(self, policy: Policy, announce: str = "") -> SuiteResult:
-        llm_for = self.suite_llm_for or (lambda _t: self.llm)
+        llm_for = self.suite_llm_for or (lambda _t: self.worker_llm or self.llm)
 
         def progress(i: int, n: int, r: Any) -> None:
             self.emit("note", {"text": f"{announce}: task {i}/{n} {r.id} {'passed' if r.ok else 'failed'}"})
@@ -119,7 +120,7 @@ class LoopRunner:
                                         "allowed": res.decision.allowed, "rule": res.decision.rule,
                                         "reason": res.decision.reason})
 
-        return run_attack(self.llm, self.python_runner, policy, spec, self.cfg.tool_mode, self.cfg.max_steps, "none", on_tool)
+        return run_attack(self.worker_llm or self.llm, self.python_runner, policy, spec, self.cfg.tool_mode, self.cfg.max_steps, "none", on_tool)
 
     # ---------- main loop ----------
     def run(self, cfg: Optional[LoopConfig] = None) -> LoopState:

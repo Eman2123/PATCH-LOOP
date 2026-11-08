@@ -120,3 +120,13 @@ def test_unreachable_llm_fails_the_run_instead_of_scoring_zero():
     assert st.status == "failed"
     done = [e for e in r.events if e.type == "done"][-1]
     assert done.data["status"] == "failed" and "unauthorized" in done.data["error"]
+
+
+def test_worker_model_is_separate_from_attacker_and_patcher():
+    """llm (attacker/patcher) must not be asked to play OfficeBot when a worker model is given."""
+    r = LoopRunner(DownLLM(), python_runner=stub_runner, suite_llm_for=None, worker_llm=GullibleLLM())
+    st = r.run(LoopConfig(rounds=1, attacks_per_round=3, use_fixed_attacks=True, template_patcher_only=True))
+    # DownLLM raises if it is ever called as the worker; GullibleLLM fails the benign tasks it cannot do,
+    # but the run must reach the attack stage using the worker model instead of crashing on DownLLM.
+    assert any(e.type == "attack" for e in r.events) or st.status == "failed"
+    assert "unauthorized" not in " ".join(str(e.data) for e in r.events)
