@@ -1,16 +1,72 @@
-# PATCH LOOP
+<div align="center">
 
-**An AI agent that gets attacked, patches its own permissions, and has to prove the patch did not break its job.**
+# PATCH-LOOP
 
-`Attack` → `Detect` → `Patch` → `Verify` → `Generalize`, then repeat.
+### Adaptive security policy refinement for tool-using AI agents
 
-Built for the lablab.ai **Vultr Agent Rush**, Track 1 "Blast Radius Zero".
+**Attack. Detect. Patch. Verify. Generalize.**
 
-> **Status: hackathon prototype.** Results are **preliminary** (small N, simulated environment). This is
-> *adaptive policy refinement*, not model training. We searched the literature only briefly and did not find
-> this exact loop, which is not a claim that it is new.
+A verification-first security loop that tests whether an AI agent's permissions can be tightened after an attack — without breaking the work the agent is supposed to do.
 
-**Live demo:** https://95-179-151-239.sslip.io · **Docs inside the app:** `/#/docs`
+<p>
+  <a href="https://95-179-151-239.sslip.io"><strong>Live Demo</strong></a>
+  · <a href="docs/ARCHITECTURE.md">Architecture</a>
+  · <a href="docs/DEPLOY.md">Deployment Guide</a>
+  · <a href="docs/DEMO_SCRIPT.md">Demo Script</a>
+</p>
+
+![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
+![Python](https://img.shields.io/badge/Python-backend-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/Frontend-React-61DAFB?logo=react&logoColor=black)
+![Docker](https://img.shields.io/badge/Isolation-Docker-2496ED?logo=docker&logoColor=white)
+![Vultr](https://img.shields.io/badge/Inference-Vultr-007BFC)
+
+</div>
+
+> **Project status: hackathon prototype.** Evaluation results are preliminary, based on a small number of trials in a simulated environment. PATCH-LOOP explores **adaptive policy refinement**, not model training. We have not established a novelty claim; the literature review was limited.
+
+**Built for:** lablab.ai [Vultr Agent Rush](https://lablab.ai/ai-hackathons/vultr-hackathon), Track 1 — **Blast Radius Zero**.
+
+**Live demo:** https://95-179-151-239.sslip.io  
+**In-app documentation:** [Open the docs](https://95-179-151-239.sslip.io/#/docs)
+
+---
+
+## At a glance
+
+| | |
+|---|---|
+| **Problem** | Prompt injection can turn an agent's legitimate tool access into unauthorized actions. |
+| **Approach** | An attacker, worker, and patcher participate in a controlled security loop. |
+| **Enforcement** | Every worker tool call passes through a policy gateway. |
+| **Verification** | Deterministic code checks state changes; an LLM does not decide whether a breach occurred. |
+| **Safety constraint** | A patch may narrow permissions, never expand them. |
+| **Utility constraint** | A patch must block the triggering attack while preserving benign task performance within the configured tolerance. |
+| **Generalization** | Held-out attack families test whether patches work beyond the attacks used during refinement. |
+
+### The five-stage loop
+
+```text
+ATTACK  →  DETECT  →  PATCH  →  VERIFY  →  GENERALIZE
+   ↑                                              |
+   └──────────────── repeat with updated policy ─┘
+```
+
+1. **Attack:** place a prompt-injection payload in simulated content such as a web page or file.
+2. **Detect:** compare the environment before and after execution to identify observable damage.
+3. **Patch:** ask the patcher to propose a restrictive policy change based on the evidence.
+4. **Verify:** independently validate that the patch is narrowing, blocks the triggering attack, and preserves benign utility.
+5. **Generalize:** evaluate the resulting policy against held-out attack families and replay prior breaches to check for regressions.
+
+### What makes this approach different
+
+- **Security is measured by outcomes.** The verifier inspects state changes such as canary hits, secret leakage, and out-of-scope writes. It does not accept the agent's explanation as proof.
+- **The patcher has limited authority.** Its output is a structured patch proposal, not unrestricted control over the policy. The `is_narrowing` check independently rejects permission expansions.
+- **Usefulness is part of the security test.** A policy that blocks every tool call is not considered a successful defence. The benign task suite measures the cost of each patch.
+- **Overfitting is explicitly tested.** Held-out attack families are kept separate from the attacks used for patch refinement. Regression attacks are replayed after each round.
+
+**Important distinction:** the project has two execution contexts. OfficeBot can run as a real model or in an explicitly labelled simulated-compromise mode to test containment when an agent follows malicious instructions. Results from the simulated mode measure the defence loop's containment behaviour, not the susceptibility of a particular frontier model.
 
 ---
 
