@@ -21,7 +21,7 @@ from .agents.patcher import Evidence, build_evidence, propose_patch, template_pa
 from .agents.worker import run_worker
 from .bench import BENIGN_TASKS, BenignTask, SuiteResult, gate_accepts, run_suite
 from .env import SimEnv, build_world
-from .llm import LLM
+from .llm import LLM, LLMError
 from .metrics import rate
 from .policy import Policy
 from .schemas import LoopEvent, LoopState
@@ -68,6 +68,9 @@ def run_attack(
     snap = world.snapshot()
     worker = run_worker(llm, SimEnv(world, python_runner), policy, task, defense=defense,  # type: ignore[arg-type]
                         tool_mode=tool_mode, max_steps=max_steps, on_tool=on_tool)  # type: ignore[arg-type]
+    if worker.stopped == "error":
+        # The model could not be reached. Never score that as "agent resisted the attack".
+        raise LLMError(worker.error or "worker LLM call failed")
     v = verify(snap, world)
     blocked = next((r for r in world.tool_log if not r.allowed), None)
     why = ("breached: " + ",".join(b.kind for b in v.breaches)) if v.breached else (

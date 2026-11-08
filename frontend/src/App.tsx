@@ -140,6 +140,16 @@ function Dashboard({ visible }: { visible: boolean }) {
           </div>
         </div>
 
+        {model.status === "failed" && (
+          <div className="banner" role="alert">
+            <span><b>Run failed.</b> {model.feed[model.feed.length - 1]?.title.replace(/^Failed: /, "")} If this mentions the LLM, check <code>VULTR_API_KEY</code> and <code>MODEL_NAME</code> in <code>.env</code> on the server, then run <code>docker compose up -d</code>.</span>
+          </div>
+        )}
+        {!isSample && model.status === "done" && model.metrics[0] && model.metrics[0].utility.total > 0 && model.metrics[0].utility.passed === 0 && (
+          <div className="banner" role="alert">
+            <span><b>This run is not meaningful.</b> The agent completed 0 of {model.metrics[0].utility.total} normal tasks, so 0% attack success only means nothing worked. This usually means the LLM call failed (wrong key, model name or no credit). Fix <code>.env</code> and start a new run.</span>
+          </div>
+        )}
         {isSample && (
           <div className="banner sample" role="note">
             <span><b>Sample data.</b> These numbers are illustrative and were not measured. They only show what a finished run looks like. Run a loop, or open a saved run, to see real results.</span>

@@ -105,3 +105,18 @@ def test_loop_failure_is_reported_not_raised():
     r = LoopRunner(Boom(), suite_llm_for=lambda t: Boom())
     st = r.run(LoopConfig(rounds=1, attacks_per_round=1, use_fixed_attacks=True))
     assert st.status in ("done", "failed")
+
+
+class DownLLM:
+    """Stands in for an unreachable or unauthorised inference endpoint."""
+    def chat(self, *a, **k):
+        from app.llm import LLMError
+        raise LLMError("401 unauthorized")
+
+
+def test_unreachable_llm_fails_the_run_instead_of_scoring_zero():
+    r = LoopRunner(DownLLM(), stub_runner, suite_llm_for=None)
+    st = r.run(LoopConfig(rounds=1, attacks_per_round=1, use_fixed_attacks=True))
+    assert st.status == "failed"
+    done = [e for e in r.events if e.type == "done"][-1]
+    assert done.data["status"] == "failed" and "unauthorized" in done.data["error"]
