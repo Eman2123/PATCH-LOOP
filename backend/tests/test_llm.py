@@ -116,3 +116,20 @@ def test_complete_json_gives_up():
 def test_from_env_requires_key():
     with pytest.raises(LLMError):
         LLM.from_env({})
+
+
+def test_empty_reply_cut_off_by_length_is_an_error_not_a_cached_answer():
+    msg = NS(content="", tool_calls=None)
+    cut = NS(choices=[NS(message=msg, finish_reason="length")], usage=NS(prompt_tokens=3, completion_tokens=20))
+    llm, _ = make([cut])
+    with pytest.raises(LLMError, match="ran out of tokens"):
+        llm.chat([{"role": "user", "content": "hi"}])
+    assert llm._cache == {}
+
+
+def test_from_env_gives_reasoning_models_room(monkeypatch):
+    import sys, types
+    fake = types.ModuleType("openai"); fake.OpenAI = lambda **k: object()
+    monkeypatch.setitem(sys.modules, "openai", fake)
+    assert LLM.from_env({"VULTR_API_KEY": "k"}).max_tokens == 4096
+    assert LLM.from_env({"VULTR_API_KEY": "k", "LLM_MAX_TOKENS": "8000"}).max_tokens == 8000

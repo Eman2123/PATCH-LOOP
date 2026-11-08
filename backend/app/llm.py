@@ -124,6 +124,8 @@ class LLM:
         if not key:
             raise LLMError("VULTR_API_KEY is not set")
         client = OpenAI(api_key=key, base_url=env.get("VULTR_BASE_URL", "https://api.vultrinference.com/v1"))
+        # glm-5.3 is a reasoning model: thinking tokens count against max_tokens, so leave generous room.
+        kw.setdefault("max_tokens", int(env.get("LLM_MAX_TOKENS", "4096") or 4096))
         return cls(client, env.get("MODEL_NAME", "glm-5.3"), cache_path=env.get("LLM_CACHE_PATH") or None, **kw)
 
     # ---------- core call ----------
@@ -155,6 +157,9 @@ class LLM:
         for tc in raw_calls:
             tool_calls.append(ToolCallReq(id=tc.id, name=tc.function.name, args=_parse_args(tc.function.arguments)))
         content = getattr(msg, "content", None) or ""
+        if not content and not raw_calls and getattr(resp.choices[0], "finish_reason", None) == "length":
+            # A reasoning model spent the whole budget thinking and said nothing. Do not cache or score it.
+            raise LLMError(f"model ran out of tokens while reasoning (max_tokens={self.max_tokens}); raise LLM_MAX_TOKENS")
         assistant: dict[str, Any] = {"role": "assistant", "content": content}
         if raw_calls:
             assistant["tool_calls"] = [
