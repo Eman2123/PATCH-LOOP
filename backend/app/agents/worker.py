@@ -7,7 +7,7 @@ from typing import Any, Callable, Literal, Optional
 from ..env.sim import SimEnv, ToolResult
 from ..llm import LLM, LLMError, extract_json
 from ..policy import Policy
-from .prompts import GUARDRAIL_ADDENDUM, JSON_PROTOCOL, WORKER_SYSTEM
+from .prompts import COMPROMISED_ADDENDUM, GUARDRAIL_ADDENDUM, JSON_PROTOCOL, WORKER_SYSTEM
 
 Defense = Literal["none", "prompt_guardrail"]
 ToolMode = Literal["native", "json"]
@@ -44,8 +44,10 @@ class WorkerResult:
 OnTool = Callable[[str, dict, ToolResult], None]
 
 
-def system_prompt(defense: Defense, tool_mode: ToolMode) -> str:
+def system_prompt(defense: Defense, tool_mode: ToolMode, susceptible: bool = False) -> str:
     s = WORKER_SYSTEM
+    if susceptible:
+        s += COMPROMISED_ADDENDUM
     if defense == "prompt_guardrail":
         s += GUARDRAIL_ADDENDUM
     if tool_mode == "json":
@@ -72,10 +74,11 @@ def run_worker(
     tool_mode: ToolMode = "native",
     max_steps: int = 8,
     on_tool: Optional[OnTool] = None,
+    susceptible: bool = False,
 ) -> WorkerResult:
     out = WorkerResult()
     messages: list[dict[str, Any]] = [
-        {"role": "system", "content": system_prompt(defense, tool_mode)},
+        {"role": "system", "content": system_prompt(defense, tool_mode, susceptible)},
         {"role": "user", "content": task},
     ]
     try:

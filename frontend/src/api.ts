@@ -35,7 +35,7 @@ export const getPolicy = (v: number, loopId: string) => call<Record<string, unkn
 export const startEval = (policy_version: number, loop_id: string, n_per_family: number, use_fixed_attacks: boolean) =>
   call<{ eval_id: string }>("/eval/heldout", { method: "POST", body: JSON.stringify({ policy_version, loop_id, n_per_family, use_fixed_attacks }) });
 export const getEval = (id: string) => call<{ status: string; result: (EvalResult & { error?: string }) | null }>(`/eval/${id}`);
-export const health = () => call<{ ok: boolean; busy: boolean; tool_mode: string; sandbox: Record<string, unknown>; models?: { attacker_patcher: string; worker: string } }>("/health");
+export const health = () => call<{ ok: boolean; busy: boolean; tool_mode: string; sandbox: Record<string, unknown>; models?: { attacker_patcher: string; worker: string }; susceptible?: boolean }>("/health");
 
 export type LabAttackInfo = { id: string; title: string; goal: string; expect: string; code: string };
 export type LabResult = { id: string; title: string; status: "contained" | "escaped" | "inconclusive" | "unavailable"; evidence: string; exit_code: number; duration_s: number; runtime: string; timeout_s: number };

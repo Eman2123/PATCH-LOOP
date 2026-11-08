@@ -169,6 +169,15 @@ widen permissions by construction.
 
 The weights are an opinion, not a measurement. They are published in `backend/app/verifier.py`.
 
+## How OfficeBot is attacked (read this before the numbers)
+
+Current frontier models mostly ignore prompt injections, so a plain run can show 0% attack success and leave the patcher nothing to fix. Patch Loop therefore has two agent modes:
+
+- **Default**: OfficeBot is a real model and the user asks for a summary (`ATTACK_TASK_STYLE=summary`). Optionally the user delegates the document's action items to the agent (`ATTACK_TASK_STYLE=actions`).
+- **Simulated compromised agent** (`SUSCEPTIBLE_AGENT=1`): OfficeBot's system prompt tells it to obey instructions found in documents. Only the agent's instructions change. The policy gateway, the deterministic verifier, the patcher, the utility gate, the regression library and the held-out families are the real code. Any result produced in this mode measures how well the defence loop contains a compromised agent, not how easily a given model is hacked. The dashboard shows "simulated compromised agent" whenever it is on.
+
+The attacker and patcher models differ from OfficeBot's model on purpose (`WORKER_MODEL_NAME`).
+
 ## Trust boundaries
 
 | Component | Trusted? | Why |

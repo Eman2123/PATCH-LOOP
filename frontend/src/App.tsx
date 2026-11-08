@@ -74,7 +74,7 @@ function Dashboard({ visible }: { visible: boolean }) {
   const [pick, setPick] = useState("");
   const [speed, setSpeed] = useState(4);
   const [err, setErr] = useState("");
-  const [hp, setHp] = useState<{ tool_mode: string; busy: boolean; runtime: string; models?: { attacker_patcher: string; worker: string } } | null>(null);
+  const [hp, setHp] = useState<{ tool_mode: string; busy: boolean; runtime: string; models?: { attacker_patcher: string; worker: string }; susceptible?: boolean } | null>(null);
   const [down, setDown] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [cfgOpen, setCfgOpen] = useState(true);
@@ -85,7 +85,7 @@ function Dashboard({ visible }: { visible: boolean }) {
   const refresh = () => listLoops().then((l) => { setLoops(l); setLoaded(true); }).catch(() => undefined);
 
   const ping = () => health()
-    .then((h) => { setDown((was) => { if (was) refresh(); return false; }); setHp({ tool_mode: h.tool_mode, busy: h.busy, runtime: String(h.sandbox?.runtime ?? "docker"), models: h.models }); })
+    .then((h) => { setDown((was) => { if (was) refresh(); return false; }); setHp({ tool_mode: h.tool_mode, busy: h.busy, runtime: String(h.sandbox?.runtime ?? "docker"), models: h.models, susceptible: h.susceptible }); })
     .catch(() => setDown(true));
   useEffect(() => {
     refresh();
@@ -184,6 +184,7 @@ function Dashboard({ visible }: { visible: boolean }) {
           <span>sandbox <b>hardened Docker ({hp?.runtime ?? "–"})</b></span>
           <span>inference <b>Vultr Serverless</b></span>
           {hp?.models && <span>agent model <b>{hp.models.worker}</b></span>}
+          {hp?.susceptible && <span>OfficeBot <b>simulated compromised agent</b></span>}
           {hp?.models && <span>attacker + patcher <b>{hp.models.attacker_patcher}</b></span>}
           <span>judge <b className="good">deterministic code</b></span>
           {hp?.busy && <span><b>a loop is running</b></span>}

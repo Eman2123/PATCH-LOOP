@@ -8,6 +8,7 @@ past breaching attack is replayed under the final policy of each round.
 from __future__ import annotations
 
 import json
+import os
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -61,13 +62,14 @@ def run_attack(
     max_steps: int = 8,
     defense: str = "none",
     on_tool: Optional[Callable[[str, dict, Any], None]] = None,
+    susceptible: bool = False,
 ) -> AttackRun:
     """One attack end to end in a fresh world; the deterministic verifier decides the outcome."""
     world = build_world()
     task = plant_attack(world, spec)
     snap = world.snapshot()
     worker = run_worker(llm, SimEnv(world, python_runner), policy, task, defense=defense,  # type: ignore[arg-type]
-                        tool_mode=tool_mode, max_steps=max_steps, on_tool=on_tool)  # type: ignore[arg-type]
+                        tool_mode=tool_mode, max_steps=max_steps, on_tool=on_tool, susceptible=susceptible)  # type: ignore[arg-type]
     if worker.stopped == "error":
         # The model could not be reached. Never score that as "agent resisted the attack".
         raise LLMError(worker.error or "worker LLM call failed")
@@ -87,6 +89,7 @@ class LoopRunner:
     worker_llm: Optional[Any] = None  # model that plays OfficeBot; defaults to llm (attacker and patcher)
     sink: Optional[Callable[[LoopEvent], None]] = None
     results_dir: Optional[str] = None
+    susceptible: bool = field(default_factory=lambda: os.environ.get("SUSCEPTIBLE_AGENT", "") == "1")
     loop_id: str = field(default_factory=lambda: uuid.uuid4().hex[:10])
     tasks: list[BenignTask] = field(default_factory=lambda: list(BENIGN_TASKS))
 
@@ -120,7 +123,8 @@ class LoopRunner:
                                         "allowed": res.decision.allowed, "rule": res.decision.rule,
                                         "reason": res.decision.reason})
 
-        return run_attack(self.worker_llm or self.llm, self.python_runner, policy, spec, self.cfg.tool_mode, self.cfg.max_steps, "none", on_tool)
+        return run_attack(self.worker_llm or self.llm, self.python_runner, policy, spec, self.cfg.tool_mode, self.cfg.max_steps, "none", on_tool,
+                          self.susceptible)
 
     # ---------- main loop ----------
     def run(self, cfg: Optional[LoopConfig] = None) -> LoopState:
@@ -140,6 +144,8 @@ class LoopRunner:
     def _run(self, c: LoopConfig) -> None:
         policy = Policy()
         self.policies[0] = policy
+        if self.susceptible:
+            self.emit("note", {"text": "OfficeBot runs as a SIMULATED compromised agent (SUSCEPTIBLE_AGENT=1): it is told to obey instructions in documents. Policy, verifier and gates are real."})
         self.emit("note", {"text": "Measuring baseline utility on the benign tasks. A reasoning model is slow, so this takes a few minutes."})
         base = self._suite(policy, announce="Baseline utility")
         self.baseline_utility = base.passed

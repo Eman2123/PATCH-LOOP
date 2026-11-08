@@ -80,7 +80,8 @@ def create_app(deps: Optional[Deps] = None, db_path: Optional[str] = None, resul
     @app.get("/health")
     def health() -> dict:
         return {"ok": True, "sandbox": default_sandbox().status(), "busy": busy.lock.locked(), "tool_mode": tool_mode,
-                "models": {"attacker_patcher": model_name, "worker": worker_name}}
+                "models": {"attacker_patcher": model_name, "worker": worker_name},
+                "susceptible": os.environ.get("SUSCEPTIBLE_AGENT", "") == "1"}
 
     # ---------- loop ----------
     @app.post("/loop/start", dependencies=[Depends(require_admin)])

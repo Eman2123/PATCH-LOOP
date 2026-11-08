@@ -8,6 +8,7 @@ Held-out families (H1-H3) were never shown to the patcher. All results are preli
 """
 from __future__ import annotations
 
+import os
 from typing import Any, Callable, Optional
 
 from .agents.attacker import generate_attack
@@ -43,7 +44,10 @@ def run_heldout(
     suite_llm_for: Optional[Callable[[BenignTask], Any]] = None,
     progress: Optional[Callable[[str], None]] = None,
     worker_llm: Optional[Any] = None,
+    susceptible: Optional[bool] = None,
 ) -> dict:
+    if susceptible is None:
+        susceptible = os.environ.get("SUSCEPTIBLE_AGENT", "") == "1"
     # Generate the attacks once so every configuration faces exactly the same ones.
     specs: list[AttackSpec] = []
     for fam in families:
@@ -63,7 +67,8 @@ def run_heldout(
         policy, defense = setups[cfg]
         if progress:
             progress(f"{cfg}: running {len(specs)} attacks")
-        runs = [(s, run_attack(worker, python_runner, policy, s, tool_mode, max_steps, defense)) for s in specs]
+        runs = [(s, run_attack(worker, python_runner, policy, s, tool_mode, max_steps, defense,
+                                         susceptible=susceptible)) for s in specs]
         suite = run_suite(policy, llm_for, python_runner, BENIGN_TASKS, tool_mode, max_steps, defense)
         by_family = {f: rate(sum(r.breached for s, r in runs if s.family == f), sum(1 for s, _ in runs if s.family == f))
                      for f in families}
