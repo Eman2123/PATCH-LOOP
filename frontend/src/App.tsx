@@ -80,9 +80,14 @@ function Dashboard({ visible }: { visible: boolean }) {
   const model = useMemo(() => reduce(events), [events]);
   const refresh = () => listLoops().then(setLoops).catch(() => undefined);
 
+  const ping = () => health()
+    .then((h) => { setDown((was) => { if (was) refresh(); return false; }); setHp({ tool_mode: h.tool_mode, busy: h.busy, runtime: String(h.sandbox?.runtime ?? "docker") }); })
+    .catch(() => setDown(true));
   useEffect(() => {
     refresh();
-    health().then((h) => { setDown(false); setHp({ tool_mode: h.tool_mode, busy: h.busy, runtime: String(h.sandbox?.runtime ?? "docker") }); }).catch(() => setDown(true));
+    ping();
+    const t = window.setInterval(ping, 10000);
+    return () => window.clearInterval(t);
   }, []);
   useEffect(() => { if (model.status === "done" || model.status === "failed") refresh(); }, [model.status]);
 
@@ -113,6 +118,13 @@ function Dashboard({ visible }: { visible: boolean }) {
           <span>judge <b className="good">deterministic code</b></span>
           {hp?.busy && <span><b>a loop is running</b></span>}
         </div>
+
+        {down && (
+          <div className="banner" role="alert">
+            <span><b>Backend unreachable.</b> Start the API (<code>uvicorn app.main:app</code> on :8000, or <code>docker compose up -d</code>). This page keeps retrying.</span>
+            <button className="btn" onClick={ping}>Retry now</button>
+          </div>
+        )}
 
         <section className="hero">
           <div className="hero-rings">
@@ -161,7 +173,7 @@ function Dashboard({ visible }: { visible: boolean }) {
               <div className="row" style={{ justifyContent: "space-between", margin: 0, gap: 8 }}><span className="muted small">{model.status === "idle" ? "idle" : `round ${model.round} of ${rounds}`}</span><span className="muted small">policy v{model.policyVersion}</span></div>
               <div className="progress" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} aria-label="Loop progress"><div style={{ width: `${progress}%` }} /></div>
             </div>
-            <button className="btn primary big" disabled={running} onClick={start}>{running ? "Running…" : "Start loop"}</button>
+            <button className="btn primary big" disabled={running || down} onClick={start}>{running ? "Running…" : "Start loop"}</button>
             {(err || error) && <p className="err small">{err || error}</p>}
             <div className="field" style={{ borderTop: "1px solid var(--line)", paddingTop: 14 }}>
               <span className="lbl">Past runs</span>

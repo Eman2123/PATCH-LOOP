@@ -1,5 +1,4 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Footer } from "./chrome";
 
 const TOC: [string, string][] = [
   ["overview", "Overview"], ["quickstart", "Quickstart"], ["loop", "How the loop works"], ["architecture", "Architecture"],
@@ -280,7 +279,6 @@ docker compose up -d --build`}</Code>
             <details><summary>Is the sandbox gVisor?</summary><p>No. It is hardened Docker (runc): no network, capabilities dropped, read-only filesystem, resource limits, and a fresh container per run.</p></details>
           </div>
         </Sec>
-        <Footer />
       </main>
     </div>
   );

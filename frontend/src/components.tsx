@@ -110,12 +110,14 @@ export function Heldout({ loopId, version, disabled, fixed }: { loopId: string |
     setState("running"); setErr(""); setRes(null);
     try {
       const { eval_id } = await startEval(version, loopId, n, fixed);
-      for (;;) {
+      const deadline = Date.now() + 15 * 60 * 1000;
+      while (Date.now() < deadline) {
         await new Promise((r) => setTimeout(r, 2000));
         const e = await getEval(eval_id);
         if (e.status === "done" && e.result) { setRes(e.result); setState("idle"); return; }
-        if (e.status === "failed") throw new Error("evaluation failed");
+        if (e.status === "failed") throw new Error(e.result?.error ?? "evaluation failed");
       }
+      throw new Error("evaluation timed out");
     } catch (e) { setErr(String(e instanceof Error ? e.message : e)); setState("failed"); }
   }
 
@@ -126,8 +128,8 @@ export function Heldout({ loopId, version, disabled, fixed }: { loopId: string |
       <h3>Held-out attacks <span className="muted">(never shown to the patcher)</span></h3>
       <p className="muted">H1 encoded exfil via an allowed domain · H2 multi-step chain · H3 argument smuggling. Same attacks for every row.</p>
       <div className="row">
-        <label>N per family <input type="number" min={1} max={30} value={n} onChange={(e) => setN(Math.max(1, Math.min(30, +e.target.value || 1)))} /></label>
-        <button disabled={disabled || state === "running" || !loopId} onClick={run}>{state === "running" ? "Running…" : `Run on policy v${version}`}</button>
+        <label className="inline-field">N per family <input type="number" min={1} max={30} value={n} onChange={(e) => setN(Math.max(1, Math.min(30, +e.target.value || 1)))} /></label>
+        <button className="btn primary" disabled={disabled || state === "running" || !loopId} onClick={run}>{state === "running" ? "Running…" : `Run on policy v${version}`}</button>
       </div>
       {err && <p className="err">{err}</p>}
       {res && (
@@ -187,7 +189,7 @@ export function ContainmentLab() {
         {done[0] ? ` · runtime: ${done[0].runtime}` : ""}. Verdicts are computed by code, not by an LLM.
       </p>
       <div className="row">
-        <button className="primary" disabled={busy || attacks.length === 0} onClick={runAll}>{busy ? "Attacking…" : `Run ${attacks.length} attacks`}</button>
+        <button className="btn primary" disabled={busy || attacks.length === 0} onClick={runAll}>{busy ? "Attacking…" : `Run ${attacks.length} attacks`}</button>
         {done.length > 0 && <b className={escaped ? "err" : "ok"}>{contained} contained · {escaped} escaped · {done.length - contained - escaped} other</b>}
       </div>
       <div className="lab">
