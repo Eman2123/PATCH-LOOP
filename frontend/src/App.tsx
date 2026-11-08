@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getToken, health, listLoops, setToken, startLoop } from "./api";
 import { Footer, Header, Landing, Rings, type Route } from "./chrome";
+import { Docs } from "./docs";
 import { ContainmentLab, DualChart, Feed, Heldout, Kpis, Patches } from "./components";
 import { reduce } from "./reduce";
 import type { Model } from "./types";
@@ -9,7 +10,7 @@ import { useEvents, type Source } from "./useEvents";
 type LoopRow = { id: string; created: number; status: string };
 
 function useRoute(): [Route, (r: Route, section?: string) => void] {
-  const read = (): Route => (window.location.hash.startsWith("#/dashboard") ? "dashboard" : "home");
+  const read = (): Route => (window.location.hash.startsWith("#/dashboard") ? "dashboard" : window.location.hash.startsWith("#/docs") ? "docs" : "home");
   const [route, setRoute] = useState<Route>(read);
   useEffect(() => {
     const f = () => setRoute(read());
@@ -17,7 +18,7 @@ function useRoute(): [Route, (r: Route, section?: string) => void] {
     return () => window.removeEventListener("hashchange", f);
   }, []);
   const go = (r: Route, section?: string) => {
-    window.location.hash = r === "dashboard" ? "#/dashboard" : "#/";
+    window.location.hash = r === "dashboard" ? "#/dashboard" : r === "docs" ? "#/docs" : "#/";
     setRoute(r);
     window.setTimeout(() => {
       if (section) document.getElementById(section)?.scrollIntoView({ behavior: "smooth" });
@@ -194,11 +195,14 @@ export default function App() {
   const [route, go] = useRoute();
   const right = route === "home"
     ? (<><span className="pill live"><span className="dot" />live on Vultr</span><button className="btn primary" onClick={() => go("dashboard")}>Open dashboard</button></>)
-    : (<span className="pill"><span className="dot" />sample runs are saved under results/</span>);
+    : route === "docs"
+      ? (<button className="btn primary" onClick={() => go("dashboard")}>Open dashboard</button>)
+      : (<span className="pill"><span className="dot" />runs are saved under results/</span>);
   return (
     <>
       <Header route={route} go={go} right={right} />
       {route === "home" && <Landing go={go} />}
+      {route === "docs" && <Docs go={go} />}
       <Dashboard visible={route === "dashboard"} />
       {route === "dashboard" && <div className="wrap" style={{ paddingBottom: 56 }}><Footer /></div>}
     </>

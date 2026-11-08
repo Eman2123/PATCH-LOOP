@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { Model } from "./types";
 
-export type Route = "home" | "dashboard";
+export type Route = "home" | "dashboard" | "docs";
 
 export function Logo({ size = 30 }: { size?: number }) {
   return (
@@ -28,7 +28,7 @@ export function Header({ route, go, right }: { route: Route; go: (r: Route, sect
           <button className={route === "home" ? "on" : ""} onClick={() => go("home")}>Home</button>
           <button className={route === "dashboard" ? "on" : ""} onClick={() => go("dashboard")}>Dashboard</button>
           {SECTIONS.map(([label, id]) => <button key={id} onClick={() => go("dashboard", id)}>{label}</button>)}
-          <a href="https://github.com/Eman2123/PATCH-LOOP" target="_blank" rel="noreferrer">Docs</a>
+          <button className={route === "docs" ? "on" : ""} onClick={() => go("docs")}>Docs</button>
         </nav>
         <div className="hdr-right">{right}</div>
       </div>
@@ -44,7 +44,7 @@ export function Footer() {
         <p>Agents that get attacked, patch their own permissions, and prove the patch did not break the job.</p>
       </div>
       <div className="foot-cols">
-        <div><b>PRODUCT</b><span>Dashboard</span><span>Runs and replay</span><span>Policy and patches</span><span>Containment Lab</span></div>
+        <div><b>PRODUCT</b><span>Dashboard</span><span>Runs and replay</span><span>Policy and patches</span><span>Containment Lab</span><span>Documentation</span></div>
         <div><b>BUILT WITH</b><span>Vultr Cloud Compute</span><span>Vultr Serverless Inference</span><span>FastAPI, SQLite, Caddy</span><span>React, Vite, TypeScript</span></div>
         <div className="wide"><b className="w">HONEST LIMITS</b>
           <span>Results are preliminary: small N, simulated world (fake web, fake mail, canary sink).</span>
