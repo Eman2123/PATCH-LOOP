@@ -53,12 +53,13 @@ export function DualChart({ m }: { m: Model }) {
 }
 
 export function Feed({ items }: { items: FeedItem[] }) {
-  const end = useRef<HTMLDivElement>(null);
-  useEffect(() => { end.current?.scrollIntoView({ block: "end" }); }, [items.length]);
+  const list = useRef<HTMLDivElement>(null);
+  // Scroll only the feed box. scrollIntoView would drag the whole page down to the feed.
+  useEffect(() => { const el = list.current; if (el) el.scrollTop = el.scrollHeight; }, [items.length]);
   return (
     <div className="card feed">
       <h3>Live feed</h3>
-      <div className="feed-list">
+      <div className="feed-list" ref={list}>
         {items.length === 0 && <p className="muted">No events yet. Open a past run, start a loop, or preview the sample.</p>}
         {items.map((f) => (
           <div key={f.seq} className={`feed-item ${f.tone} ${f.kind}`}>
@@ -66,7 +67,6 @@ export function Feed({ items }: { items: FeedItem[] }) {
             {f.detail && <div className="feed-detail">{f.detail}</div>}
           </div>
         ))}
-        <div ref={end} />
       </div>
     </div>
   );

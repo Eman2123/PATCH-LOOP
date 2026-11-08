@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getToken, health, listLoops, setToken, startLoop } from "./api";
+import { getReplay, getToken, health, listLoops, setToken, startLoop } from "./api";
 import { Footer, Header, Landing, Rings, type Route } from "./chrome";
 import { Docs } from "./docs";
 import { ContainmentLab, DualChart, Feed, Heldout, Kpis, Patches } from "./components";
@@ -99,8 +99,20 @@ function Dashboard({ visible }: { visible: boolean }) {
   useEffect(() => {
     if (!loaded || auto.current) return;
     auto.current = true;
-    const done = loops.filter((l) => l.status === "done").sort((a, b) => b.created - a.created)[0];
-    if (done && !source) { setPick(done.id); setSource({ mode: "replay", loopId: done.id, speed: 1000 }); setCfgOpen(false); }
+    const done = loops.filter((l) => l.status === "done").sort((a, b) => b.created - a.created).slice(0, 5);
+    if (!done.length || source) return;
+    (async () => {
+      // Prefer the newest run that actually did something (baseline utility above 0); else the newest one.
+      let pickId = done[0].id;
+      for (const l of done) {
+        try {
+          const ev = await getReplay(l.id);
+          const base = ev.find((e) => e.type === "metrics" && e.data?.round === 0);
+          if (base && base.data.utility?.passed > 0) { pickId = l.id; break; }
+        } catch { /* try the next one */ }
+      }
+      setPick(pickId); setSource({ mode: "replay", loopId: pickId, speed: 1000 }); setCfgOpen(false);
+    })();
   }, [loaded, loops, source]);
 
   const isSample = source?.loopId === SAMPLE_ID;
