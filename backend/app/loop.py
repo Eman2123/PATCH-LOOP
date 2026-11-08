@@ -103,9 +103,14 @@ class LoopRunner:
         if self.sink:
             self.sink(ev)
 
-    def _suite(self, policy: Policy) -> SuiteResult:
+    def _suite(self, policy: Policy, announce: str = "") -> SuiteResult:
         llm_for = self.suite_llm_for or (lambda _t: self.llm)
-        return run_suite(policy, llm_for, self.python_runner, self.tasks, self.cfg.tool_mode, self.cfg.max_steps)
+
+        def progress(i: int, n: int, r: Any) -> None:
+            self.emit("note", {"text": f"{announce}: task {i}/{n} {r.id} {'passed' if r.ok else 'failed'}"})
+
+        return run_suite(policy, llm_for, self.python_runner, self.tasks, self.cfg.tool_mode, self.cfg.max_steps,
+                         progress=progress if announce else None)
 
     def _run_attack(self, policy: Policy, spec: AttackSpec, announce: bool = False) -> AttackRun:
         def on_tool(tool: str, args: dict, res: Any) -> None:
@@ -134,7 +139,8 @@ class LoopRunner:
     def _run(self, c: LoopConfig) -> None:
         policy = Policy()
         self.policies[0] = policy
-        base = self._suite(policy)
+        self.emit("note", {"text": "Measuring baseline utility on the benign tasks. A reasoning model is slow, so this takes a few minutes."})
+        base = self._suite(policy, announce="Baseline utility")
         self.baseline_utility = base.passed
         last_suite = {0: base}
         self.emit("metrics", {"round": 0, "policy_version": 0,

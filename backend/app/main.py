@@ -96,6 +96,8 @@ def create_app(deps: Optional[Deps] = None, db_path: Optional[str] = None, resul
 
         def work() -> None:
             try:
+                runner.state.status = "running"
+                store.save_state(runner.loop_id, runner.state.model_dump())  # visible as running at once, not after the first event
                 runner.run(cfg)
             except Exception:  # noqa: BLE001 - run() already reports; this is the last resort
                 runner.state.status = "failed"

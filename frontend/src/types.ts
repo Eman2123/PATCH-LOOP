@@ -18,7 +18,7 @@ export type RoundMetrics = {
 
 export type FeedItem = {
   seq: number;
-  kind: "round" | "attack" | "tool" | "verdict" | "patch" | "done";
+  kind: "round" | "note" | "attack" | "tool" | "verdict" | "patch" | "done";
   tone: "neutral" | "bad" | "good" | "warn";
   title: string;
   detail?: string;

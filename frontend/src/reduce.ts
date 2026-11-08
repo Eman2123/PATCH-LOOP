@@ -23,6 +23,9 @@ export function reduce(events: LoopEvent[]): Model {
         m.policyVersion = d.policy_version;
         m.feed.push({ seq: e.seq, kind: "round", tone: "neutral", title: `Round ${d.round} · policy v${d.policy_version}` });
         break;
+      case "note":
+        m.feed.push({ seq: e.seq, kind: "note", tone: "neutral", title: String(d.text ?? "") });
+        break;
       case "attack":
         m.feed.push({ seq: e.seq, kind: "attack", tone: "warn", title: `Attack ${d.family} (${d.source}, via ${d.carrier})`, detail: trunc(d.payload, 200) });
         m.lastBreach = { family: d.family, payload: d.payload };

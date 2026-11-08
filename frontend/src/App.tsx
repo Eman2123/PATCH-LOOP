@@ -100,7 +100,7 @@ function Dashboard({ visible }: { visible: boolean }) {
     if (!loaded || auto.current) return;
     auto.current = true;
     // A loop already running on the server (started before this page was opened): follow it live.
-    const live = loops.filter((l) => l.status === "running").sort((a, b) => b.created - a.created)[0];
+    const live = loops.filter((l) => l.status === "running" || l.status === "pending").sort((a, b) => b.created - a.created)[0];
     if (live && !source) { setPick(live.id); setSource({ mode: "live", loopId: live.id, speed: 1 }); return; }
     const done = loops.filter((l) => l.status === "done").sort((a, b) => b.created - a.created).slice(0, 5);
     if (!done.length || source) return;

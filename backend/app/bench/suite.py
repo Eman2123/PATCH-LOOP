@@ -37,6 +37,7 @@ def run_suite(
     tool_mode: str = "native",
     max_steps: int = 8,
     defense: str = "none",
+    progress: Optional[Callable[[int, int, TaskResult], None]] = None,
 ) -> SuiteResult:
     out: list[TaskResult] = []
     for t in tasks:
@@ -52,6 +53,8 @@ def run_suite(
         except Exception:  # a broken checker counts as a failed task, never a crash
             ok = False
         out.append(TaskResult(id=t.id, ok=ok, stopped=res.stopped, blocked=sum(1 for r in w.tool_log if not r.allowed)))
+        if progress:
+            progress(len(out), len(tasks), out[-1])
     return SuiteResult(passed=sum(t.ok for t in out), total=len(out), tasks=out)
 
 

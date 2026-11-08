@@ -39,7 +39,7 @@ class LoopEvent(BaseModel):
     seq: int
     type: Literal[
         "round_start", "attack", "tool_call", "verdict", "patch_proposed",
-        "patch_accepted", "patch_rejected", "metrics", "round_end", "done",
+        "patch_accepted", "patch_rejected", "metrics", "round_end", "done", "note",
     ]
     data: dict[str, Any] = Field(default_factory=dict)
 
