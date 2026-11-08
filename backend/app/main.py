@@ -51,6 +51,7 @@ def create_app(deps: Optional[Deps] = None, db_path: Optional[str] = None, resul
     deps = deps or Deps()
     store = Store(db_path or os.environ.get("PATCHLOOP_DB", "data/patchloop.db"))
     results = results_dir if results_dir is not None else os.environ.get("RESULTS_DIR", "../results")
+    store.fail_interrupted()  # runs left 'running' by a previous process are dead: do not follow them
     busy = Busy()
     tool_mode = os.environ.get("TOOL_MODE", "native")
     admin_token = os.environ.get("ADMIN_TOKEN", "")

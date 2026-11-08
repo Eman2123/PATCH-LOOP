@@ -63,6 +63,17 @@ class Store:
         return [{"id": r["id"], "created": r["created"], "status": r["status"]}
                 for r in self._all("SELECT id, created, status FROM loops ORDER BY created DESC LIMIT ?", (limit,))]
 
+    def fail_interrupted(self) -> int:
+        """A loop still 'running' or 'pending' at startup died with the previous process (restart, crash).
+        Mark it failed so the dashboard stops following a dead run and a new one can start."""
+        rows = self._all("SELECT id, state FROM loops WHERE status IN ('running','pending')")
+        for r in rows:
+            st = json.loads(r["state"])
+            st["status"] = "failed"
+            self._run("UPDATE loops SET status='failed', state=? WHERE id=?", (json.dumps(st), r["id"]))
+        self._run("UPDATE evals SET status='failed' WHERE status='running'")
+        return len(rows)
+
     # ---------- events ----------
     def add_event(self, loop_id: str, seq: int, type_: str, data: dict) -> None:
         self._run("INSERT OR REPLACE INTO events VALUES(?,?,?,?)", (loop_id, seq, type_, json.dumps(data)))
