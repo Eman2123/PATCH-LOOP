@@ -9,18 +9,18 @@ export const ci = (r: Rate) => `${r.k}/${r.n} · 95% CI ${Math.round(r.lo * 100)
 
 export function Kpis({ m }: { m: Model }) {
   const last = m.metrics[m.metrics.length - 1];
-  const items: [string, string, string][] = [
-    ["Attack success", last?.asr ? pct(last.asr) : "–", last?.asr ? ci(last.asr) : "waiting"],
-    ["Benign utility", last ? `${last.utility.passed}/${last.utility.total}` : "–", last?.utility.baseline !== undefined ? `baseline ${last.utility.baseline}` : "baseline"],
-    ["Patches", last ? `${last.accepted} ✓ / ${last.rejected} ✗` : "–", "accepted / rejected"],
-    ["False blocks", last ? String(last.falseBlocks) : "–", "on benign tasks"],
-    ["Regression", last?.regression ? `${last.regression.failures}/${last.regression.library}` : "–", "old attacks that still work"],
-    ["Contained", last ? String(last.contained) : "–", "stopped by the sandbox"],
+  const items: [string, string, string, string][] = [
+    ["Attack success", last?.asr ? pct(last.asr) : "–", last?.asr ? ci(last.asr) : "waiting", "bad"],
+    ["Benign utility", last ? `${last.utility.passed}/${last.utility.total}` : "–", last?.utility.baseline !== undefined ? `baseline ${last.utility.baseline}` : "baseline", "good"],
+    ["Patches", last ? `${last.accepted} ✓ / ${last.rejected} ✗` : "–", "accepted / rejected", ""],
+    ["False blocks", last ? String(last.falseBlocks) : "–", "on benign tasks", "warn"],
+    ["Regression", last?.regression ? `${last.regression.failures}/${last.regression.library}` : "–", "old attacks that still work", "good"],
+    ["Contained", last ? String(last.contained) : "–", "stopped by the sandbox", "acc"],
   ];
   return (
     <div className="kpis">
-      {items.map(([t, v, s]) => (
-        <div className="kpi" key={t}><div className="kpi-t">{t}</div><div className="kpi-v">{v}</div><div className="kpi-s">{s}</div></div>
+      {items.map(([t, v, s, tone]) => (
+        <div className={`kpi ${tone}`} key={t}><div className="kpi-t">{t}</div><div className="kpi-v">{v}</div><div className="kpi-s">{s}</div></div>
       ))}
     </div>
   );
@@ -35,14 +35,14 @@ export function DualChart({ m }: { m: Model }) {
       <div style={{ height: 260 }}>
         <ResponsiveContainer>
           <ComposedChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
-            <CartesianGrid stroke="#2a3140" strokeDasharray="3 3" />
-            <XAxis dataKey="round" stroke="#8a94a6" label={{ value: "round (0 = baseline)", position: "insideBottom", offset: -2, fill: "#8a94a6", fontSize: 11 }} />
-            <YAxis domain={[0, 100]} stroke="#8a94a6" unit="%" />
-            <Tooltip contentStyle={{ background: "#151a23", border: "1px solid #2a3140" }} />
+            <CartesianGrid stroke="#262d38" strokeDasharray="3 3" />
+            <XAxis dataKey="round" stroke="#8b98a9" label={{ value: "round (0 = baseline)", position: "insideBottom", offset: -2, fill: "#8b98a9", fontSize: 11 }} />
+            <YAxis domain={[0, 100]} stroke="#8b98a9" unit="%" />
+            <Tooltip contentStyle={{ background: "#161b22", border: "1px solid #262d38", borderRadius: 8 }} />
             <Legend />
-            <Area dataKey="band" name="ASR 95% CI" stroke="none" fill="#ff5d5d" fillOpacity={0.15} isAnimationActive={false} />
-            <Line dataKey="asr" name="Attack success %" stroke="#ff5d5d" strokeWidth={2.5} dot={{ r: 4 }} connectNulls isAnimationActive={false} />
-            <Line dataKey="utility" name="Benign utility %" stroke="#3ddc97" strokeWidth={2.5} dot={{ r: 4 }} connectNulls isAnimationActive={false} />
+            <Area dataKey="band" name="ASR 95% CI" stroke="none" fill="#ef7468" fillOpacity={0.15} isAnimationActive={false} />
+            <Line dataKey="asr" name="Attack success %" stroke="#ef7468" strokeWidth={2.5} dot={{ r: 4 }} connectNulls isAnimationActive={false} />
+            <Line dataKey="utility" name="Benign utility %" stroke="#3fb68b" strokeWidth={2.5} dot={{ r: 4 }} connectNulls isAnimationActive={false} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -131,7 +131,7 @@ export function Heldout({ loopId, version, disabled, fixed }: { loopId: string |
       </div>
       {err && <p className="err">{err}</p>}
       {res && (
-        <table className="eval">
+        <div className="scroll-x"><table className="eval">
           <thead><tr><th>Config</th><th>Attack success</th><th>Utility</th><th>Damage*</th></tr></thead>
           <tbody>
             {order.filter((c) => res.configs[c]).map((c) => {
@@ -146,7 +146,7 @@ export function Heldout({ loopId, version, disabled, fixed }: { loopId: string |
               );
             })}
           </tbody>
-        </table>
+        </table></div>
       )}
       {res && <p className="muted small">*Damage weights are our published opinion. {res.note}</p>}
     </div>
