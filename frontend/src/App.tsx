@@ -111,12 +111,12 @@ function Dashboard({ visible }: { visible: boolean }) {
           if (base && base.data.utility?.passed > 0) { pickId = l.id; break; }
         } catch { /* try the next one */ }
       }
-      setPick(pickId); setSource({ mode: "replay", loopId: pickId, speed: 1000 }); setCfgOpen(false);
+      setPick(pickId); setSource({ mode: "replay", loopId: pickId, speed: 1000 });
     })();
   }, [loaded, loops, source]);
 
   const isSample = source?.loopId === SAMPLE_ID;
-  const loadSample = () => { setSource({ mode: "replay", loopId: SAMPLE_ID, speed: 1000 }); setCfgOpen(false); };
+  const loadSample = () => { setSource({ mode: "replay", loopId: SAMPLE_ID, speed: 1000 }); };
 
   async function start() {
     setErr(""); setToken(token);
@@ -228,7 +228,7 @@ function Dashboard({ visible }: { visible: boolean }) {
             </div>
             <label className="field">
               <span className="lbl">Admin token</span>
-              <input className="token" type="password" value={token} placeholder="Required to start a run" onChange={(e) => setTok(e.target.value)} />
+              <input className="token" type="password" value={token} placeholder="Required to start a run" onChange={(e) => { setTok(e.target.value); setToken(e.target.value); }} />
               <span className="muted small">Viewers can watch and replay without it. Only you can start new runs.</span>
             </label>
           </div>
