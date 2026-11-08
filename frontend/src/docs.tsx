@@ -168,7 +168,7 @@ export function Docs({ go }: { go: (r: "home" | "dashboard" | "docs", section?: 
           <h3>Example patch</h3>
           <Code label="json">{`{
   "op": "ADD_DENY",
-  "field": "path_glob",
+  "field": "deny_path_globs",
   "value": "**/.env"
 }`}</Code>
         </Sec>
