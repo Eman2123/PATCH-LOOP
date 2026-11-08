@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Area, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { getEval, labAttacks, labKernel, labRun, startEval, type LabAttackInfo, type LabResult } from "./api";
 import { chartRows } from "./reduce";
+import { chartColors, useTheme } from "./theme";
 import type { EvalResult, FeedItem, Model, PatchItem, Rate } from "./types";
 
 export const pct = (r: Rate | null | undefined) => (r ? `${Math.round(r.rate * 100)}%` : "–");
@@ -28,6 +29,7 @@ export function Kpis({ m }: { m: Model }) {
 
 export function DualChart({ m }: { m: Model }) {
   const rows = chartRows(m.metrics);
+  const c = chartColors(useTheme());
   return (
     <div className="card">
       <h3>Attack success vs. utility, per round</h3>
@@ -35,14 +37,14 @@ export function DualChart({ m }: { m: Model }) {
       <div style={{ height: 260 }}>
         <ResponsiveContainer>
           <ComposedChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
-            <CartesianGrid stroke="#262d38" strokeDasharray="3 3" />
-            <XAxis dataKey="round" stroke="#8b98a9" label={{ value: "round (0 = baseline)", position: "insideBottom", offset: -2, fill: "#8b98a9", fontSize: 11 }} />
-            <YAxis domain={[0, 100]} stroke="#8b98a9" unit="%" />
-            <Tooltip contentStyle={{ background: "#161b22", border: "1px solid #262d38", borderRadius: 8 }} />
+            <CartesianGrid stroke={c.grid} strokeDasharray="3 3" />
+            <XAxis dataKey="round" stroke={c.axis} label={{ value: "round (0 = baseline)", position: "insideBottom", offset: -2, fill: c.axis, fontSize: 11 }} />
+            <YAxis domain={[0, 100]} stroke={c.axis} unit="%" />
+            <Tooltip contentStyle={{ background: c.tipBg, border: `1px solid ${c.tipLine}`, borderRadius: 8 }} />
             <Legend />
-            <Area dataKey="band" name="ASR 95% CI" stroke="none" fill="#ef7468" fillOpacity={0.15} isAnimationActive={false} />
-            <Line dataKey="asr" name="Attack success %" stroke="#ef7468" strokeWidth={2.5} dot={{ r: 4 }} connectNulls isAnimationActive={false} />
-            <Line dataKey="utility" name="Benign utility %" stroke="#3fb68b" strokeWidth={2.5} dot={{ r: 4 }} connectNulls isAnimationActive={false} />
+            <Area dataKey="band" name="ASR 95% CI" stroke="none" fill={c.asr} fillOpacity={0.15} isAnimationActive={false} />
+            <Line dataKey="asr" name="Attack success %" stroke={c.asr} strokeWidth={2.5} dot={{ r: 4 }} connectNulls isAnimationActive={false} />
+            <Line dataKey="utility" name="Benign utility %" stroke={c.util} strokeWidth={2.5} dot={{ r: 4 }} connectNulls isAnimationActive={false} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -57,7 +59,7 @@ export function Feed({ items }: { items: FeedItem[] }) {
     <div className="card feed">
       <h3>Live feed</h3>
       <div className="feed-list">
-        {items.length === 0 && <p className="muted">No events yet. Start a loop or replay a run.</p>}
+        {items.length === 0 && <p className="muted">No events yet. Open a past run, start a loop, or preview the sample.</p>}
         {items.map((f) => (
           <div key={f.seq} className={`feed-item ${f.tone} ${f.kind}`}>
             <div className="feed-title">{f.title}</div>

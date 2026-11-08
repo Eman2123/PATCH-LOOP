@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getToken, health, listLoops, setToken, startLoop } from "./api";
 import { Footer, Header, Landing, Rings, type Route } from "./chrome";
 import { Docs } from "./docs";
 import { ContainmentLab, DualChart, Feed, Heldout, Kpis, Patches } from "./components";
 import { reduce } from "./reduce";
+import { SAMPLE_ID } from "./sample";
 import type { Model } from "./types";
 import { useEvents, type Source } from "./useEvents";
 
@@ -75,10 +76,13 @@ function Dashboard({ visible }: { visible: boolean }) {
   const [err, setErr] = useState("");
   const [hp, setHp] = useState<{ tool_mode: string; busy: boolean; runtime: string } | null>(null);
   const [down, setDown] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [cfgOpen, setCfgOpen] = useState(true);
+  const auto = useRef(false);
 
   const { events, error } = useEvents(source);
   const model = useMemo(() => reduce(events), [events]);
-  const refresh = () => listLoops().then(setLoops).catch(() => undefined);
+  const refresh = () => listLoops().then((l) => { setLoops(l); setLoaded(true); }).catch(() => undefined);
 
   const ping = () => health()
     .then((h) => { setDown((was) => { if (was) refresh(); return false; }); setHp({ tool_mode: h.tool_mode, busy: h.busy, runtime: String(h.sandbox?.runtime ?? "docker") }); })
@@ -91,6 +95,17 @@ function Dashboard({ visible }: { visible: boolean }) {
   }, []);
   useEffect(() => { if (model.status === "done" || model.status === "failed") refresh(); }, [model.status]);
 
+  // Show data right away: open the newest finished run once, so the dashboard is never blank.
+  useEffect(() => {
+    if (!loaded || auto.current) return;
+    auto.current = true;
+    const done = loops.filter((l) => l.status === "done").sort((a, b) => b.created - a.created)[0];
+    if (done && !source) { setPick(done.id); setSource({ mode: "replay", loopId: done.id, speed: 1000 }); setCfgOpen(false); }
+  }, [loaded, loops, source]);
+
+  const isSample = source?.loopId === SAMPLE_ID;
+  const loadSample = () => { setSource({ mode: "replay", loopId: SAMPLE_ID, speed: 1000 }); setCfgOpen(false); };
+
   async function start() {
     setErr(""); setToken(token);
     try {
@@ -100,16 +115,44 @@ function Dashboard({ visible }: { visible: boolean }) {
   }
 
   const running = model.status === "running" && source?.mode === "live";
-  const canEval = model.status === "done" && source !== null;
+  const canEval = model.status === "done" && source !== null && !isSample;
   const withAsr = model.metrics.filter((r) => r.asr);
   const first = withAsr[0]?.asr, lastAsr = withAsr[withAsr.length - 1]?.asr;
   const pct = (r?: { rate: number } | null) => (r ? `${Math.round(r.rate * 100)}%` : "–");
   const stage = stageIndex(model);
   const progress = model.status === "done" ? 100 : model.status === "running" ? Math.min(95, Math.round((model.round / Math.max(1, rounds)) * 100)) : 0;
 
+  const viewing = !source ? "nothing loaded" : isSample ? "sample data (illustrative)" : `${source.mode === "live" ? "live run" : "saved run"} ${source.loopId}`;
+
   return (
     <div hidden={!visible}>
       <div className="wrap app">
+        <div className="page-head" id="runs">
+          <div>
+            <div className="eyebrow">DASHBOARD</div>
+            <h1>Blast radius, round by round</h1>
+            <p className="muted">Viewing: <b className="viewing">{viewing}</b></p>
+          </div>
+          <div className="page-actions">
+            <button className="btn" onClick={() => setCfgOpen((o) => !o)} aria-expanded={cfgOpen}>{cfgOpen ? "Hide run settings" : "Run settings"}</button>
+            {!source && <button className="btn" onClick={loadSample}>Preview sample</button>}
+            <button className="btn primary" disabled={running || down} onClick={start}>{running ? "Running…" : "Start loop"}</button>
+          </div>
+        </div>
+
+        {isSample && (
+          <div className="banner sample" role="note">
+            <span><b>Sample data.</b> These numbers are illustrative and were not measured. They only show what a finished run looks like. Run a loop, or open a saved run, to see real results.</span>
+            <button className="btn" onClick={() => setSource(null)}>Clear</button>
+          </div>
+        )}
+        {!source && loaded && loops.length === 0 && !down && (
+          <div className="empty" role="note">
+            <b>No runs yet.</b>
+            <span className="muted">Start a loop (needs the admin token if one is set) and results appear here live. To see the layout first, use <i>Preview sample</i>.</span>
+          </div>
+        )}
+
         <div className="strip">
           <span>backend <b className={down ? "" : "good"}>{down ? "unreachable" : "ok"}</b></span>
           <span>tool mode <b>{hp?.tool_mode ?? "–"}</b></span>
@@ -144,7 +187,7 @@ function Dashboard({ visible }: { visible: boolean }) {
           ))}
         </section>
 
-        <section id="runs" className="card panel">
+        <section className="card panel" hidden={!cfgOpen}>
           <div className="cfg">
             <div className="card-h"><h3>Run configuration</h3></div>
             <div className="row">
@@ -209,7 +252,7 @@ export default function App() {
     ? (<><span className="pill live"><span className="dot" />live on Vultr</span><button className="btn primary" onClick={() => go("dashboard")}>Open dashboard</button></>)
     : route === "docs"
       ? (<button className="btn primary" onClick={() => go("dashboard")}>Open dashboard</button>)
-      : (<span className="pill"><span className="dot" />runs are saved under results/</span>);
+      : null;
   return (
     <>
       <Header route={route} go={go} right={right} />

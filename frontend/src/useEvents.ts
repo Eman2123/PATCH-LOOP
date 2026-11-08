@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { apiUrl, getReplay } from "./api";
+import { SAMPLE_ID, sampleEvents } from "./sample";
 import type { LoopEvent } from "./types";
 
 export type Source = { mode: "live" | "replay"; loopId: string; speed: number } | null;
@@ -28,7 +29,9 @@ export function useEvents(source: Source): { events: LoopEvent[]; error: string 
       es.onerror = () => { if (!closed) setError(es?.readyState === EventSource.CLOSED ? "stream closed by server" : "stream interrupted, reconnecting…"); };
       es.onopen = () => setError("");
     } else {
-      getReplay(source.loopId).then((all) => {
+      (source.loopId === SAMPLE_ID ? Promise.resolve(sampleEvents()) : getReplay(source.loopId)).then((all) => {
+        if (closed) return;
+        if (source.speed >= 1000) { setEvents(all); return; } // instant: show the finished run at once
         let i = 0;
         timer = window.setInterval(() => {
           if (closed) return;
