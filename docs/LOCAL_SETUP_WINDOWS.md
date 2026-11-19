@@ -10,6 +10,8 @@ This guide covers the local development workflow for PATCH-LOOP on Windows using
 
 Docker and a Vultr API key are not required for the backend unit tests.
 
+If the Windows `py` launcher is unavailable, replace `py` with `python` in the commands below.
+
 ## Backend
 
 From the repository root:
@@ -17,7 +19,7 @@ From the repository root:
 ```powershell
 cd backend
 py -m venv .venv
-.\.venv\Scripts\Activate.ps1
+.\\.venv\\Scripts\\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 python -m pytest -q
@@ -27,7 +29,7 @@ If PowerShell blocks virtual-environment activation, allow scripts for the curre
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\.venv\Scripts\Activate.ps1
+.\\.venv\\Scripts\\Activate.ps1
 ```
 
 ## Frontend
