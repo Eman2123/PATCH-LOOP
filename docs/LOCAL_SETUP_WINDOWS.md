@@ -8,6 +8,15 @@ This guide covers the local development workflow for PATCH-LOOP on Windows using
 - Node.js and npm
 - Git
 
+Check that the required command-line tools are available:
+
+```powershell
+py --version
+node --version
+npm --version
+git --version
+```
+
 Docker and a Vultr API key are not required for the backend unit tests.
 
 If the Windows `py` launcher is unavailable, replace `py` with `python` in the commands below.
