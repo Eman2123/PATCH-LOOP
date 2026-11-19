@@ -5,7 +5,7 @@ This guide covers the local development workflow for PATCH-LOOP on Windows using
 ## Prerequisites
 
 - Python 3.11 or a version supported by the backend dependencies
-- Node.js and npm
+- Node.js LTS and npm
 - Git
 
 Check that the required command-line tools are available:
