@@ -91,6 +91,8 @@ ATTACK  →  DETECT  →  PATCH  →  VERIFY  →  GENERALIZE
 17. [Repo map](#repo-map)
 18. [Limits](#limits)
 19. [Business value](#business-value)
+20. [Windows local setup](docs/LOCAL_SETUP_WINDOWS.md)
+21. [Submission checklist](docs/SUBMISSION_CHECKLIST.md)
 
 ---
 
